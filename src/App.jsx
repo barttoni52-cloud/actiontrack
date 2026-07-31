@@ -39,7 +39,7 @@ const dbToAction = (a) => ({
   commentaires: a.commentaires || [],
   retardMotif: a.retard_motif, retardDetails: a.retard_details,
   echecMotif: a.echec_motif, echecDetails: a.echec_details,
-  qrToken: a.qr_token,
+ qrToken: a.qr_token, assignes: a.assignes || [],
 });
 
 const actionToDB = (a) => ({
