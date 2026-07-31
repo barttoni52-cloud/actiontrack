@@ -58,6 +58,7 @@ const dbToProjet = (p) => ({
   id: p.id, titre: p.titre, description: p.description || '',
   managerId: p.manager_id, dateDebut: p.date_debut, dateFin: p.date_fin,
   couleur: p.couleur || '#2563eb', actif: p.actif !== false,
+  agents: p.agents || [],
 });
 
 const projetToDB = (p) => ({
