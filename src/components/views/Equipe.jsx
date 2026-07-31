@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { Avatar, Btn, ProgressBar, Field, Input, Select } from '../UI';
+import { Avatar, Btn, ProgressBar } from '../UI';
 import InviteModal from '../InviteModal';
 
 export default function Equipe({ users, actions, setUsers, currentUser }) {
   const [showInvite, setShowInvite] = useState(false);
-  const [showForm, setShowForm] = useState(false);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -15,17 +14,17 @@ export default function Equipe({ users, actions, setUsers, currentUser }) {
         )}
       </div>
 
-      {showInvite && <InviteModal onClose={() => setShowInvite(false)} />}
+      {showInvite && <InviteModal onClose={() => setShowInvite(false)} users={users} />}
 
-      {/* Info invitation */}
       <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '10px 14px', fontSize: 11, color: '#1d4ed8' }}>
-        💡 Pour inviter un nouveau membre, cliquez sur "Inviter un membre". Il recevra un email avec un lien pour créer son mot de passe et accéder à l'application.
+        💡 Pour inviter un nouveau membre, cliquez sur "Inviter un membre". Le mot de passe généré sera affiché pour que vous puissiez le transmettre.
       </div>
 
       {users.map(u => {
         const my = actions.filter(a => a.assigneA === u.id);
         const mv = my.filter(a => a.statut === 'VALIDÉ').length;
         const mp = my.length ? Math.round(mv / my.length * 100) : 0;
+        const manager = users.find(x => x.id === u.managerId);
         return (
           <div key={u.id} style={{ background: '#fff', border: '1px solid #d4cfc8', borderRadius: 10, padding: '12px 16px', opacity: u.actif ? 1 : .4, boxShadow: '0 1px 3px rgba(0,0,0,.06)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: my.length > 0 ? 10 : 0 }}>
@@ -33,9 +32,13 @@ export default function Equipe({ users, actions, setUsers, currentUser }) {
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 13, color: '#1a1a18' }}>{u.nom}</div>
                 <div style={{ fontSize: 10, color: '#7a7672' }}>
-                  {u.poste}{u.service ? ` · ${u.service}` : ''} ·{' '}
-                  <span style={{ color: '#2563eb', textTransform: 'uppercase', fontSize: 9, fontWeight: 700 }}>{u.role}</span>
+                  {u.poste}{u.service ? ` · ${u.service}` : ''} · <span style={{ color: '#2563eb', textTransform: 'uppercase', fontSize: 9, fontWeight: 700 }}>{u.role}</span>
                 </div>
+                {manager && (
+                  <div style={{ fontSize: 10, color: '#7a7672', marginTop: 2 }}>
+                    Manager : <span style={{ color: '#1a1a18', fontWeight: 600 }}>{manager.nom}</span>
+                  </div>
+                )}
               </div>
               <div style={{ textAlign: 'right', marginRight: 12 }}>
                 <div style={{ fontSize: 10, color: '#7a7672' }}>{my.length} action(s)</div>
