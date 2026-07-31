@@ -51,7 +51,7 @@ const actionToDB = (a) => ({
   etapes: a.etapes, journal: a.journal, commentaires: a.commentaires,
   retard_motif: a.retardMotif, retard_details: a.retardDetails,
   echec_motif: a.echecMotif, echec_details: a.echecDetails,
-  qr_token: a.qrToken,
+ qr_token: a.qrToken, assignes: a.assignes || [],
 });
 
 const dbToProjet = (p) => ({
