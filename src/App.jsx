@@ -113,7 +113,11 @@ export default function App() {
       }
 
       // Load actions
-      const { data: actionsData } = await supabase.from('actions').select('*').order('date_creation', { ascending: false });
+     let actionsQuery = supabase.from('actions').select('*').order('date_creation', { ascending: false });
+if (profile && profile.role === 'agent') {
+  actionsQuery = actionsQuery.eq('assigne_a', profile.id);
+}
+const { data: actionsData } = await actionsQuery;
       if (actionsData) setActions(actionsData.map(dbToAction));
 
     } catch (e) {
