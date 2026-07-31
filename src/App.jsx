@@ -220,10 +220,13 @@ const { data: actionsData } = await actionsQuery;
     setActions(p => p.map(a => a.id === actionId ? { ...a, ...fullPatch } : a));
     const updated = { ...action, ...fullPatch };
     await supabase.from('actions').update(actionToDB(updated)).eq('id', actionId);
+   const agentProfile = users.find(u => u.id === currentUser.id);
+    const managerPrincipal = agentProfile?.managerId ? users.find(u => u.id === agentProfile.managerId) : null;
+    const managerInfo = managerPrincipal ? ` — Manager ${managerPrincipal.nom} notifié.` : '';
     if (newStatut === 'VALIDÉ') {
-      pushNotif('✅ Action validée !', `"${action?.titre}" validée par ${currentUser.nom}.`, 'success');
+      pushNotif('✅ Action validée !', `"${action?.titre}" validée par ${currentUser.nom}.${managerInfo}`, 'success');
     } else {
-      pushNotif('❌ Échec signalé', `"${action?.titre}" : ${echecMotif}.`, 'warning');
+      pushNotif('❌ Échec signalé', `"${action?.titre}" : ${echecMotif}.${managerInfo}`, 'warning');
     }
     setQrActionId(null);
   }, [actions, currentUser, pushNotif]);
