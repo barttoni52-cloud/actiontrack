@@ -23,13 +23,15 @@ const genPassword = () => {
   return pwd.split('').sort(() => Math.random() - 0.5).join('');
 };
 
-export default function InviteModal({ onClose }) {
-  const [form, setForm] = useState({ email: '', nom: '', poste: '', service: '', role: 'agent' });
+export default function InviteModal({ onClose, users }) {
+  const [form, setForm] = useState({ email: '', nom: '', poste: '', service: '', role: 'agent', managerId: '' });
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  const managers = users.filter(u => u.actif && (u.role === 'manager' || u.role === 'direction'));
 
   const invite = async () => {
     if (!form.email || !form.nom) { setError('Email et nom requis.'); return; }
@@ -41,12 +43,12 @@ export default function InviteModal({ onClose }) {
         email: form.email,
         password,
         options: {
-          data: { nom: form.nom, role: form.role, poste: form.poste, service: form.service, avatar },
+          data: { nom: form.nom, role: form.role, poste: form.poste, service: form.service, avatar, manager_id: form.managerId || null },
           emailRedirectTo: window.location.origin,
         }
       });
       if (signErr) throw signErr;
-      setResult({ nom: form.nom, email: form.email, password });
+      setResult({ nom: form.nom, email: form.email, password, manager: managers.find(m => m.id === form.managerId)?.nom });
     } catch (e) {
       setError(e.message === 'User already registered' ? 'Cet email est déjà enregistré.' : e.message);
     }
@@ -73,6 +75,7 @@ export default function InviteModal({ onClose }) {
             { l: 'URL de connexion', v: window.location.origin },
             { l: 'Email', v: result.email },
             { l: 'Mot de passe', v: result.password },
+            ...(result.manager ? [{ l: 'Manager principal', v: result.manager }] : []),
           ].map(({ l, v }) => (
             <div key={l} style={{ marginBottom: 10 }}>
               <div style={{ fontSize: 9, color: '#7a7672', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 3 }}>{l}</div>
@@ -81,7 +84,7 @@ export default function InviteModal({ onClose }) {
           ))}
         </div>
         <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 14px', fontSize: 11, color: '#92400e' }}>
-          ⚠ Notez ce mot de passe maintenant — il ne sera plus affiché.
+          ⚠ Notez ce mot de passe — il ne sera plus affiché.
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <Btn variant="primary" onClick={copyAll} style={{ flex: 1 }}>{copied ? '✓ Copié !' : '📋 Copier les identifiants'}</Btn>
@@ -104,13 +107,21 @@ export default function InviteModal({ onClose }) {
         <Field label="Poste"><Input value={form.poste} onChange={e => f('poste', e.target.value)} placeholder="Ex: Chargé de mission" /></Field>
         <Field label="Service"><Input value={form.service} onChange={e => f('service', e.target.value)} placeholder="Ex: Opérations" /></Field>
       </div>
-      <Field label="Rôle">
-        <Select value={form.role} onChange={e => f('role', e.target.value)}>
-          {ROLES.map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
-        </Select>
-      </Field>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <Field label="Rôle">
+          <Select value={form.role} onChange={e => f('role', e.target.value)}>
+            {ROLES.map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
+          </Select>
+        </Field>
+        <Field label="Manager principal">
+          <Select value={form.managerId} onChange={e => f('managerId', e.target.value)}>
+            <option value="">— Sélectionner —</option>
+            {managers.map(m => <option key={m.id} value={m.id}>{m.nom} ({m.role})</option>)}
+          </Select>
+        </Field>
+      </div>
       <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '10px 14px', fontSize: 11, color: '#1d4ed8', marginBottom: 16 }}>
-        🔐 Un mot de passe sécurisé sera généré et affiché pour que vous puissiez le transmettre à l'agent.
+        🔐 Un mot de passe sécurisé sera généré. Le manager principal sera notifié des actions de cet agent.
       </div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
         <Btn onClick={onClose}>Annuler</Btn>
