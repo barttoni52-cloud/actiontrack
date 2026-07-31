@@ -1,8 +1,14 @@
 import React, { useState } from 'react';
-import { supabase } from '../supabase';
+import { createClient } from '@supabase/supabase-js';
 import { Modal, Btn, Field, Input, Select } from './UI';
 
 const ROLES = ['agent', 'manager', 'direction'];
+
+const supabaseSignup = createClient(
+  'https://fmgwvmvzufxoabtxtcls.supabase.co',
+  'sb_publishable_TK0IPcl9hYoWoZ-wZxBfkQ_6ppBmvox',
+  { auth: { persistSession: false, autoRefreshToken: false } }
+);
 
 const genPassword = () => {
   const chars = 'abcdefghjkmnpqrstuvwxyz';
@@ -31,7 +37,7 @@ export default function InviteModal({ onClose }) {
     try {
       const avatar = form.nom.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
       const password = genPassword();
-      const { error: signErr } = await supabase.auth.signUp({
+      const { error: signErr } = await supabaseSignup.auth.signUp({
         email: form.email,
         password,
         options: {
@@ -63,18 +69,16 @@ export default function InviteModal({ onClose }) {
           <div style={{ fontSize: 11, color: '#7a7672', marginTop: 4 }}>Transmettez ces identifiants à <strong>{result.nom}</strong></div>
         </div>
         <div style={{ background: '#f5f4f0', border: '1px solid #d4cfc8', borderRadius: 10, padding: 16 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {[
-              { l: 'URL de connexion', v: window.location.origin },
-              { l: 'Email', v: result.email },
-              { l: 'Mot de passe', v: result.password },
-            ].map(({ l, v }) => (
-              <div key={l}>
-                <div style={{ fontSize: 9, color: '#7a7672', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 3 }}>{l}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#1a1a18', fontFamily: 'monospace', background: '#fff', padding: '6px 10px', borderRadius: 6, border: '1px solid #d4cfc8' }}>{v}</div>
-              </div>
-            ))}
-          </div>
+          {[
+            { l: 'URL de connexion', v: window.location.origin },
+            { l: 'Email', v: result.email },
+            { l: 'Mot de passe', v: result.password },
+          ].map(({ l, v }) => (
+            <div key={l} style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 9, color: '#7a7672', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 3 }}>{l}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#1a1a18', fontFamily: 'monospace', background: '#fff', padding: '8px 10px', borderRadius: 6, border: '1px solid #d4cfc8' }}>{v}</div>
+            </div>
+          ))}
         </div>
         <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 14px', fontSize: 11, color: '#92400e' }}>
           ⚠ Notez ce mot de passe maintenant — il ne sera plus affiché.
@@ -106,7 +110,7 @@ export default function InviteModal({ onClose }) {
         </Select>
       </Field>
       <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '10px 14px', fontSize: 11, color: '#1d4ed8', marginBottom: 16 }}>
-        🔐 Un mot de passe sécurisé sera généré automatiquement. Vous pourrez le copier et le transmettre à l'agent.
+        🔐 Un mot de passe sécurisé sera généré et affiché pour que vous puissiez le transmettre à l'agent.
       </div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
         <Btn onClick={onClose}>Annuler</Btn>
