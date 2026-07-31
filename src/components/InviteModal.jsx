@@ -15,38 +15,19 @@ export default function InviteModal({ onClose }) {
     if (!form.email || !form.nom) { setError('Email et nom requis.'); return; }
     setLoading(true); setError(null);
     try {
-      // Créer l'utilisateur avec invitation
-      const { data, error: invErr } = await supabase.auth.admin?.inviteUserByEmail
-        ? await supabase.auth.admin.inviteUserByEmail(form.email, {
-            data: { nom: form.nom, role: form.role, poste: form.poste, service: form.service,
-              avatar: form.nom.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() }
-          })
-        : { error: { message: 'admin_required' } };
-
-      if (invErr?.message === 'admin_required') {
-        // Fallback : signup avec mot de passe temporaire
-        const tempPwd = Math.random().toString(36).slice(-10) + 'A1!';
-        const { error: signErr } = await supabase.auth.signUp({
-          email: form.email,
-          password: tempPwd,
-          options: {
-            data: { nom: form.nom, role: form.role, poste: form.poste, service: form.service,
-              avatar: form.nom.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() },
-            emailRedirectTo: window.location.origin,
-          }
-        });
-        if (signErr) throw signErr;
-        // Envoyer reset password pour que l'utilisateur choisisse son mot de passe
-        await supabase.auth.resetPasswordForEmail(form.email, { redirectTo: window.location.origin });
-        setSuccess(true);
-      } else if (invErr) {
-        throw invErr;
-      } else {
-        setSuccess(true);
-      }
-    } catch (e) {
-      setError(e.message);
-    }
+      const avatar = form.nom.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+      const { error: signErr } = await supabase.auth.signUp({
+        email: form.email,
+        password: 'ActionTrack2024!',
+        options: {
+          data: { nom: form.nom, role: form.role, poste: form.poste, service: form.service, avatar },
+          emailRedirectTo: window.location.origin,
+        }
+      });
+      if (signErr) throw signErr;
+      await supabase.auth.resetPasswordForEmail(form.email, { redirectTo: window.location.origin });
+      setSuccess(true);
+    } catch (e) { setError(e.message); }
     setLoading(false);
   };
 
@@ -55,8 +36,8 @@ export default function InviteModal({ onClose }) {
       <div style={{ textAlign: 'center', padding: '20px 0' }}>
         <div style={{ fontSize: 40, marginBottom: 14 }}>✅</div>
         <div style={{ fontSize: 15, fontWeight: 800, color: '#1a1a18', marginBottom: 8 }}>Invitation envoyée !</div>
-        <div style={{ fontSize: 12, color: '#7a7672', marginBottom: 20, lineHeight: 1.6 }}>
-          <strong>{form.nom}</strong> ({form.email}) va recevoir un email avec un lien pour définir son mot de passe et accéder à ActionTrack.
+        <div style={{ fontSize: 12, color: '#7a7672', marginBottom: 6, lineHeight: 1.6 }}>
+          <strong>{form.nom}</strong> va recevoir un email à <strong>{form.email}</strong> avec un lien pour créer son mot de passe.
         </div>
         <Btn variant="primary" onClick={onClose}>Fermer</Btn>
       </div>
@@ -69,9 +50,7 @@ export default function InviteModal({ onClose }) {
         <div style={{ fontSize: 16, fontWeight: 800, color: '#1a1a18' }}>Inviter un membre</div>
         <Btn onClick={onClose} style={{ background: 'none', border: 'none', color: '#a09c98', fontSize: 16, padding: 0 }}>✕</Btn>
       </div>
-
       {error && <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 14px', color: '#dc2626', fontSize: 12, marginBottom: 14 }}>{error}</div>}
-
       <Field label="Email *"><Input type="email" value={form.email} onChange={e => f('email', e.target.value)} placeholder="prenom.nom@entreprise.com" /></Field>
       <Field label="Nom complet *"><Input value={form.nom} onChange={e => f('nom', e.target.value)} placeholder="Prénom Nom" /></Field>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -83,11 +62,9 @@ export default function InviteModal({ onClose }) {
           {ROLES.map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
         </Select>
       </Field>
-
       <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '10px 14px', fontSize: 11, color: '#1d4ed8', marginBottom: 16 }}>
-        📧 Un email sera envoyé à <strong>{form.email || 'l\'adresse indiquée'}</strong> avec un lien pour définir son mot de passe et accéder à l'application.
+        📧 <strong>{form.email || 'La personne'}</strong> recevra un email avec un lien pour confirmer son compte et choisir son mot de passe.
       </div>
-
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
         <Btn onClick={onClose}>Annuler</Btn>
         <Btn variant="primary" onClick={invite} disabled={loading}>{loading ? 'Envoi...' : '📧 Envoyer l\'invitation'}</Btn>
