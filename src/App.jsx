@@ -88,9 +88,16 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
+ useEffect(() => {
     if (!session) { setLoading(false); return; }
     loadAll();
+  }, [session]);
+
+  // Recharger quand la fenêtre reprend le focus (agent revient après scan QR)
+  useEffect(() => {
+    const handleFocus = () => { if (session) loadAll(); };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, [session]);
 
   const pushNotif = useCallback((titre, message, type = 'info') => {
