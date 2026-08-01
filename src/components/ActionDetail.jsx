@@ -235,14 +235,10 @@ export default function ActionDetail({ actionId, actions, users, currentUser, on
               </span>
             </div>
             {!['VALIDÉ','ARCHIVÉ','REJETÉ'].includes(action.statut) ? (
-              <div style={{ display:'flex', gap:8, width:'100%' }}>
+            <div style={{ display:'flex', gap:8, width:'100%' }}>
                 <button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/validate/${action.qrToken}`)}
-                  style={{ flex:1, background:'#fff', border:'1px solid #c4bfb8', borderRadius:8, padding:'8px 0', fontSize:11, cursor:'pointer', fontFamily:'inherit' }}>
-                  📋 Copier le lien
-                </button>
-                <button onClick={() => { onClose(); onQRScan(action.id); }}
-                  style={{ flex:1, background:'#065f46', color:'#6ee7b7', border:'1px solid #059669', borderRadius:8, padding:'8px 0', fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
-                  📱 Simuler le scan
+                  style={{ flex:1, background:'#fff', border:'1px solid #c4bfb8', borderRadius:8, padding:'10px 0', fontSize:11, cursor:'pointer', fontFamily:'inherit' }}>
+                  📋 Copier le lien de validation
                 </button>
               </div>
             ) : (
