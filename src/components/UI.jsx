@@ -158,34 +158,21 @@ export function Card({ children, style = {} }) {
   );
 }
 
-// ─── QR CODE (SVG généré) ─────────────────────────────────────────────────────
+// ─── QR CODE (vraie librairie qrcode) ────────────────────────────────────────
 export function QRCode({ token, size = 130 }) {
-  const cells = 11;
-  const cell = size / cells;
-  const hash = token.split('').reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0);
-  const bits = Array.from({ length: cells * cells }, (_, i) =>
-    ((hash * 2654435761 + i * 2246822519) >>> 0) % 4 !== 0
-  );
-  const markers = [
-    [0, 0], [cells - 7, 0], [0, cells - 7],
-  ];
-  return (
-    <svg width={size} height={size} style={{ display: 'block' }}>
-      <rect width={size} height={size} fill="#fff" rx={4} />
-      {bits.map((b, i) => {
-        const row = Math.floor(i / cells), col = i % cells;
-        const inM = markers.some(([mx, my]) => col >= mx && col < mx + 7 && row >= my && row < my + 7);
-        return b && !inM ? (
-          <rect key={i} x={col * cell + 1} y={row * cell + 1} width={cell - 2} height={cell - 2} fill="#1a1a18" rx={1} />
-        ) : null;
-      })}
-      {markers.map(([mx, my], mi) => [
-        [0, 0, 7, 7, '#1a1a18'], [1, 1, 5, 5, '#fff'], [2, 2, 3, 3, '#1a1a18'],
-      ].map(([ox, oy, w, h, f], li) => (
-        <rect key={`m${mi}-${li}`} x={(mx + ox) * cell} y={(my + oy) * cell} width={w * cell} height={h * cell} fill={f} rx={2} />
-      )))}
-    </svg>
-  );
+  const [dataUrl, setDataUrl] = React.useState(null);
+  const url = `${window.location.origin}/validate/${token}`;
+
+  React.useEffect(() => {
+    import('qrcode').then(QR => {
+      QR.toDataURL(url, { width: size, margin: 1, color: { dark: '#1a1a18', light: '#ffffff' } })
+        .then(setDataUrl)
+        .catch(console.error);
+    });
+  }, [url, size]);
+
+  if (!dataUrl) return <div style={{ width: size, height: size, background: '#f5f4f0', borderRadius: 4 }} />;
+  return <img src={dataUrl} alt="QR Code" style={{ width: size, height: size, display: 'block', borderRadius: 4 }} />;
 }
 
 // ─── NOTIF TOAST ─────────────────────────────────────────────────────────────
