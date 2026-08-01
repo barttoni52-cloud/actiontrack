@@ -67,6 +67,8 @@ const projetToDB = (p) => ({
   id: p.id, titre: p.titre, description: p.description,
   manager_id: p.managerId || null, date_debut: p.dateDebut, date_fin: p.dateFin,
   couleur: p.couleur, actif: p.actif, agents: p.agents || [],
+  derniere_modif: p.derniereModif || null,
+  modif_par: p.modifPar || null,
 });
 
 export default function App() {
