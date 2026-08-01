@@ -299,21 +299,40 @@ export default function ActionDetail({ actionId, actions, users, currentUser, on
           </div>
         )}
 
-        {/* TAB: QR */}
+        {/* ─── QR CODE ─── */}
         {tab === 'qr' && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
             <div style={{ fontSize: 11, color: '#7a7672', textAlign: 'center', maxWidth: 280 }}>
-              L'agent scanne ce QR pour déclencher la validation. Le manager reçoit une notification immédiate.
+              L'agent scanne ce QR avec son téléphone pour valider la mission. Le manager reçoit une notification immédiate.
             </div>
-            <div style={{ background: '#f5f4f0', padding: 18, borderRadius: 12, border: '1px solid #d4cfc8', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <QRCode token={action.qrToken} size={140} />
-              <div style={{ fontSize: 9, color: '#a09c98', marginTop: 8, fontFamily: 'monospace' }}>{action.qrToken}</div>
+            <div style={{ background: '#f5f4f0', padding: 20, borderRadius: 14, border: '1px solid #d4cfc8', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <QRCode token={action.qrToken} size={160} />
+              <div style={{ fontSize: 9, color: '#a09c98', marginTop: 10, fontFamily: 'monospace' }}>{action.qrToken}</div>
+            </div>
+            <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '10px 14px', fontSize: 11, color: '#1d4ed8', textAlign: 'center', width: '100%' }}>
+              🔗 URL de validation :<br />
+              <span style={{ fontFamily: 'monospace', fontSize: 10, wordBreak: 'break-all' }}>
+                {window.location.origin}/validate/{action.qrToken}
+              </span>
             </div>
             {!['VALIDÉ', 'ARCHIVÉ', 'REJETÉ'].includes(action.statut) ? (
-              <Btn variant="green" onClick={() => { onClose(); onQRScan(action.id); }}>📱 Simuler le scan QR</Btn>
+              <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+                <button
+                  onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/validate/${action.qrToken}`); }}
+                  style={{ flex: 1, background: '#fff', border: '1px solid #c4bfb8', borderRadius: 8, padding: '8px 0', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}
+                >
+                  📋 Copier le lien
+                </button>
+                <button
+                  onClick={() => { onClose(); onQRScan(action.id); }}
+                  style={{ flex: 1, background: '#065f46', color: '#6ee7b7', border: '1px solid #059669', borderRadius: 8, padding: '8px 0', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+                >
+                  📱 Simuler le scan
+                </button>
+              </div>
             ) : (
               <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '10px 18px', color: '#16a34a', fontSize: 11, fontWeight: 700 }}>
-                ✓ Action déjà validée
+                ✓ Action validée — {formatDate(action.dateFin)}
               </div>
             )}
           </div>
