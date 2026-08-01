@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { supabase } from '../supabase';
+import { createClient } from '@supabase/supabase-js';
 import { MOTIFS_RETARD, MOTIFS_ECHEC, gid, nowISO } from '../data/initial';
+
+const supabaseAnon = createClient(
+  'https://fmgwvmvzufxoabtxtcls.supabase.co',
+  'sb_publishable_TK0IPcl9hYoWoZ-wZxBfkQ_6ppBmvox'
+);
 
 export default function ValidatePage({ token }) {
   const [action, setAction] = useState(null);
