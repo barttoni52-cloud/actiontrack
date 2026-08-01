@@ -66,6 +66,12 @@ export default function ActionDetail({ actionId, actions, users, currentUser, on
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
           <div style={{ fontSize:9, color:'#a09c98', fontFamily:'monospace' }}>{action.id}</div>
           <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+            {canModify && action.statut === 'VALIDÉ' && (
+              <button onClick={() => { onUpdate(actionId, { statut:'ARCHIVÉ' }); onClose(); }}
+                style={{ background:'#f5f4f0', border:'1px solid #d4cfc8', borderRadius:6, padding:'4px 10px', fontSize:11, cursor:'pointer', fontFamily:'inherit', color:'#7a7672' }}>
+                🗄 Archiver
+              </button>
+            )}
             {canModify && (
               <button onClick={() => setShowEdit(true)} style={{ background:'#f5f4f0', border:'1px solid #d4cfc8', borderRadius:6, padding:'4px 10px', fontSize:11, cursor:'pointer', fontFamily:'inherit', color:'#4a4844' }}>
                 ✏️ Modifier
