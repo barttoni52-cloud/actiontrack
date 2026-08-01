@@ -109,9 +109,14 @@ export default function App() {
       if (profiles) setUsersState(profiles.map(profileToUser));
 
       // Load projets
-      const { data: projetsData } = await supabase.from('projets').select('*').order('created_at', { ascending: false });
+const { data: projetsData } = await supabase.from('projets').select('*').order('created_at', { ascending: false });
       if (projetsData && projetsData.length > 0) {
-        setProjetsState(projetsData.map(dbToProjet));
+        if (profile && profile.role === 'agent') {
+          const agentProjets = projetsData.filter(p => (p.agents || []).includes(profile.id));
+          setProjetsState(agentProjets.map(dbToProjet));
+        } else {
+          setProjetsState(projetsData.map(dbToProjet));
+        }
       } else {
         // Seed initial projets if empty
         await seedInitialData(profile);
