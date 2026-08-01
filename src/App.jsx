@@ -8,6 +8,7 @@ import Manager from './components/views/Manager';
 import Journal from './components/views/Journal';
 import Projets from './components/views/Projets';
 import Equipe from './components/views/Equipe';
+import Archives from './components/views/Archives';
 import GestionGroupes from './components/GestionGroupes';
 import ActionDetail from './components/ActionDetail';
 import QRModal from './components/QRModal';
@@ -57,17 +58,14 @@ const dbToProjet = (p) => ({
   id: p.id, titre: p.titre, description: p.description || '',
   managerId: p.manager_id, dateDebut: p.date_debut, dateFin: p.date_fin,
   couleur: p.couleur || '#2563eb', actif: p.actif !== false,
-  agents: p.agents || [],
-  derniereModif: p.derniere_modif || null,
-  modifPar: p.modif_par || null,
+  agents: p.agents || [], derniereModif: p.derniere_modif || null, modifPar: p.modif_par || null,
 });
 
 const projetToDB = (p) => ({
   id: p.id, titre: p.titre, description: p.description,
   manager_id: p.managerId || null, date_debut: p.dateDebut, date_fin: p.dateFin,
   couleur: p.couleur, actif: p.actif, agents: p.agents || [],
-  derniere_modif: p.derniereModif || null,
-  modif_par: p.modifPar || null,
+  derniere_modif: p.derniereModif || null, modif_par: p.modifPar || null,
 });
 
 export default function App() {
@@ -95,62 +93,67 @@ export default function App() {
     loadAll();
   }, [session]);
 
+  const pushNotif = useCallback((titre, message, type = 'info') => {
+    const id = gid('N');
+    setNotifs(p => [...p, { id, titre, message, type }]);
+    setTimeout(() => setNotifs(p => p.filter(n => n.id !== id)), 6000);
+  }, []);
+
+  useEffect(() => {
+    if (!currentUser || currentUser.role === 'agent') return;
+    const channel = supabase
+      .channel('actions-realtime')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'actions' }, (payload) => {
+        const updated = payload.new;
+        if (updated.statut === 'VALIDÉ' || updated.statut === 'REJETÉ') {
+          setActions(p => p.map(a => a.id === updated.id ? dbToAction(updated) : a));
+          const icon = updated.statut === 'VALIDÉ' ? '✅' : '❌';
+          const msg = updated.statut === 'VALIDÉ' ? 'validée via QR Code' : 'signalée non réalisée';
+          pushNotif(`${icon} Mission ${updated.statut === 'VALIDÉ' ? 'validée' : 'rejetée'}`, `"${updated.titre}" ${msg}.`, updated.statut === 'VALIDÉ' ? 'success' : 'warning');
+        }
+      })
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, [currentUser, pushNotif]);
+
   const loadAll = async () => {
     setLoading(true);
     try {
       const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
       if (profile) setCurrentUser(profileToUser(profile));
-
       const { data: profiles } = await supabase.from('profiles').select('*').order('nom');
       if (profiles) setUsersState(profiles.map(profileToUser));
-
       const { data: projetsData } = await supabase.from('projets').select('*').order('created_at', { ascending: false });
       if (projetsData && projetsData.length > 0) {
         if (profile && profile.role === 'agent') {
-          const agentProjets = projetsData.filter(p => (p.agents || []).includes(profile.id));
-          setProjetsState(agentProjets.map(dbToProjet));
+          setProjetsState(projetsData.filter(p => (p.agents || []).includes(profile.id)).map(dbToProjet));
         } else {
           setProjetsState(projetsData.map(dbToProjet));
         }
       } else {
         await seedInitialData(profile);
       }
-
       let actionsQuery = supabase.from('actions').select('*').order('date_creation', { ascending: false });
       if (profile && profile.role === 'agent') {
         actionsQuery = actionsQuery.eq('assigne_a', profile.id);
       }
       const { data: actionsData } = await actionsQuery;
       if (actionsData) setActions(actionsData.map(dbToAction));
-
       const { data: groupesData } = await supabase.from('groupes').select('*').order('created_at', { ascending: false });
-      if (groupesData) setGroupes(groupesData.map(g => ({
-        id: g.id, nom: g.nom, description: g.description || '',
-        couleur: g.couleur || '#2563eb', managerId: g.manager_id, membres: g.membres || []
-      })));
-
-    } catch (e) {
-      console.error('Load error:', e);
-    }
+      if (groupesData) setGroupes(groupesData.map(g => ({ id:g.id, nom:g.nom, description:g.description||'', couleur:g.couleur||'#2563eb', managerId:g.manager_id, membres:g.membres||[] })));
+    } catch (e) { console.error('Load error:', e); }
     setLoading(false);
   };
 
   const seedInitialData = async (profile) => {
     if (!profile || profile.role !== 'direction') return;
-    const projetsToInsert = INITIAL_PROJETS.map(p => ({
+    const { data } = await supabase.from('projets').insert(INITIAL_PROJETS.map(p => ({
       id: p.id, titre: p.titre, description: p.description,
-      manager_id: profile.id, date_debut: p.dateDebut, date_fin: p.dateFin,
-      couleur: p.couleur, actif: true,
-    }));
-    const { data } = await supabase.from('projets').insert(projetsToInsert).select();
+      manager_id: profile.id, date_debut: p.dateDebut, date_fin: p.dateFin, couleur: p.couleur, actif: true,
+    }))).select();
     if (data) setProjetsState(data.map(dbToProjet));
   };
 
-  const pushNotif = useCallback((titre, message, type = 'info') => {
-    const id = gid('N');
-    setNotifs(p => [...p, { id, titre, message, type }]);
-    setTimeout(() => setNotifs(p => p.filter(n => n.id !== id)), 6000);
-  }, []);
   const dismissNotif = (id) => setNotifs(p => p.filter(n => n.id !== id));
 
   const updateAction = useCallback(async (id, patch) => {
@@ -218,13 +221,13 @@ export default function App() {
     setActions(p => p.map(a => a.id === actionId ? { ...a, ...fullPatch } : a));
     await supabase.from('actions').update(actionToDB({ ...action, ...fullPatch })).eq('id', actionId);
     const agentProfile = users.find(u => u.id === currentUser.id);
-    const managerPrincipal = agentProfile?.managerId ? users.find(u => u.id === agentProfile.managerId) : null;
-    const managerInfo = managerPrincipal ? ` — Manager ${managerPrincipal.nom} notifié.` : '';
-    if (newStatut === 'VALIDÉ') {
-      pushNotif('✅ Mission validée !', `"${action?.titre}" validée par ${currentUser.nom}.${managerInfo}`, 'success');
-    } else {
-      pushNotif('❌ Échec signalé', `"${action?.titre}" : ${echecMotif}.${managerInfo}`, 'warning');
-    }
+    const manager = agentProfile?.managerId ? users.find(u => u.id === agentProfile.managerId) : null;
+    const managerInfo = manager ? ` — ${manager.nom} notifié.` : '';
+    pushNotif(
+      newStatut === 'VALIDÉ' ? '✅ Mission validée !' : '❌ Échec signalé',
+      `"${action?.titre}" ${newStatut === 'VALIDÉ' ? 'validée' : ': ' + echecMotif}.${managerInfo}`,
+      newStatut === 'VALIDÉ' ? 'success' : 'warning'
+    );
     setQrActionId(null);
   }, [actions, currentUser, pushNotif, users]);
 
@@ -259,6 +262,7 @@ export default function App() {
     ...(currentUser.role !== 'agent' ? [
       { id:'vue_manager', label:'Vue Manager', icon:'▦' },
       { id:'journal', label:'Journal', icon:'≡' },
+      { id:'archives', label:'Archives', icon:'🗄' },
     ] : []),
     ...(currentUser.role !== 'agent' ? [{ id:'groupes', label:'Groupes', icon:'👥' }] : []),
     ...(currentUser.role !== 'agent' ? [{ id:'equipe', label:'Équipe', icon:'◉' }] : []),
@@ -314,6 +318,7 @@ export default function App() {
             {view==='projets'     && <Projets     {...viewProps} onSelectAction={setSelectedActionId} setProjets={setProjets} />}
             {view==='vue_manager' && <Manager     {...viewProps} />}
             {view==='journal'     && <Journal     {...viewProps} />}
+            {view==='archives'    && <Archives    actions={actions} users={users} currentUser={currentUser} onSelect={setSelectedActionId} />}
             {view==='equipe'      && <Equipe      users={users} actions={actions} setUsers={setUsers} currentUser={currentUser} />}
             {view==='groupes'     && <GestionGroupes groupes={groupes} users={users} currentUser={currentUser} onUpdate={setGroupes} />}
           </div>
