@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Modal, Btn, Badge, PrioBadge, ProgressBar, Avatar, Lbl, Field, Input, Select, Textarea, QRCode } from './UI';
-import { formatDate, nowISO, gid, STATUTS, MOTIFS_RETARD, MOTIFS_ECHEC } from '../data/initial';
+import { formatDate, nowISO, gid, STATUTS } from '../data/initial';
 
 export default function ActionDetail({ actionId, actions, users, currentUser, onClose, onUpdate, onAddJournal, onQRScan }) {
   const [tab, setTab] = useState('detail');
@@ -8,6 +8,7 @@ export default function ActionDetail({ actionId, actions, users, currentUser, on
   const [pendingPhotos, setPendingPhotos] = useState([]);
   const [newStatut, setNewStatut] = useState('');
   const [lightbox, setLightbox] = useState(null);
+  const fileInputRef = useRef(null);
 
   const action = actions.find(a => a.id === actionId);
   if (!action) return null;
@@ -18,7 +19,9 @@ export default function ActionDetail({ actionId, actions, users, currentUser, on
     ? Math.round(action.etapes.filter(e => e.fait).length / action.etapes.length * 100)
     : 0;
   const isOverdue = action.dateLimite && new Date(action.dateLimite) < new Date() && !['VALIDÉ', 'ARCHIVÉ', 'REJETÉ'].includes(action.statut);
-  const canEdit = currentUser.role !== 'agent' || action.assigneA === currentUser.id;
+  // Commentaires toujours accessibles, même si validé
+  const canEditAction = currentUser.role !== 'agent' || action.assigneA === currentUser.id;
+  const canComment = canEditAction; // toujours possible
   const dureeReelle = action.dateDebut && action.dateFin
     ? Math.round(Math.abs(new Date(action.dateFin) - new Date(action.dateDebut)) / 36e5)
     : null;
@@ -26,11 +29,11 @@ export default function ActionDetail({ actionId, actions, users, currentUser, on
   const JTYPE_COLORS = { creation: '#2563eb', validation: '#16a34a', rejet: '#dc2626', soumission: '#7c3aed', mise_a_jour: '#a09c98' };
 
   const TABS = [
-    { id: 'detail',   label: 'Détail' },
-    { id: 'etapes',   label: `Étapes ${etapesPct}%` },
-    { id: 'comm',     label: `Commentaires ${action.commentaires.length}` },
-    { id: 'journal',  label: `Journal ${action.journal.length}` },
-    { id: 'qr',       label: 'QR Code' },
+    { id: 'detail',  label: 'Détail' },
+    { id: 'etapes',  label: `Étapes ${etapesPct}%` },
+    { id: 'comm',    label: `Commentaires ${action.commentaires.length}` },
+    { id: 'journal', label: `Journal ${action.journal.length}` },
+    { id: 'qr',      label: 'QR Code' },
   ];
 
   const addComment = () => {
@@ -45,9 +48,9 @@ export default function ActionDetail({ actionId, actions, users, currentUser, on
   };
 
   const handlePhotoUpload = (e) => {
-    const files = Array.from(e.target.files).slice(0, 3 - pendingPhotos.length);
-    files.forEach(f => {
-      if (pendingPhotos.length >= 3) return;
+    const files = Array.from(e.target.files);
+    const remaining = 3 - pendingPhotos.length;
+    files.slice(0, remaining).forEach(f => {
       const reader = new FileReader();
       reader.onload = (ev) => setPendingPhotos(p => [...p, ev.target.result].slice(0, 3));
       reader.readAsDataURL(f);
@@ -72,15 +75,26 @@ export default function ActionDetail({ actionId, actions, users, currentUser, on
     setNewStatut('');
   };
 
-  const S = { label: { fontSize: 9, color: '#7a7672', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 3 } };
+  const metaItems = [
+    { l: 'Assigné à', v: assigne?.nom || '—' },
+    { l: 'Créé par', v: createur?.nom || '—' },
+    { l: 'Catégorie', v: action.categorie },
+    { l: 'Service', v: assigne?.service || '—' },
+    { l: 'Création', v: formatDate(action.dateCreation) },
+    { l: 'Échéance', v: action.dateLimite ? formatDate(action.dateLimite) : '—' },
+    { l: 'Durée attendue', v: action.dureeAttendue ? `${action.dureeAttendue}h` : '—' },
+    { l: 'Durée réelle', v: dureeReelle !== null ? `${dureeReelle}h` : 'En cours' },
+  ];
 
   return (
     <>
-      <Modal onClose={onClose} maxWidth={660}>
-        {/* Header */}
+      <Modal onClose={onClose} maxWidth={680}>
+        {/* Close */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
-          <Btn onClick={onClose} style={{ background: 'none', border: 'none', color: '#a09c98', padding: 0, fontSize: 16 }}>✕</Btn>
+          <Btn onClick={onClose} style={{ background: 'none', border: 'none', color: '#a09c98', padding: 0, fontSize: 18 }}>✕</Btn>
         </div>
+
+        {/* Header */}
         <div style={{ fontSize: 9, color: '#a09c98', fontFamily: 'monospace', marginBottom: 4 }}>{action.id}</div>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
           <div style={{ fontSize: 18, fontWeight: 800, color: '#1a1a18', lineHeight: 1.3, flex: 1 }}>{action.titre}</div>
@@ -100,31 +114,25 @@ export default function ActionDetail({ actionId, actions, users, currentUser, on
         <div style={{ display: 'flex', borderBottom: '1px solid #e8e4de', marginBottom: 16, overflowX: 'auto' }}>
           {TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)} style={{
-              background: 'none', border: 'none', borderBottom: `2px solid ${tab === t.id ? '#2563eb' : 'transparent'}`,
-              color: tab === t.id ? '#2563eb' : '#7a7672', cursor: 'pointer', padding: '8px 14px',
-              fontSize: 11, fontFamily: 'inherit', whiteSpace: 'nowrap', fontWeight: tab === t.id ? 700 : 400,
+              background: 'none', border: 'none',
+              borderBottom: `2px solid ${tab === t.id ? '#2563eb' : 'transparent'}`,
+              color: tab === t.id ? '#2563eb' : '#7a7672',
+              cursor: 'pointer', padding: '8px 14px', fontSize: 11,
+              fontFamily: 'inherit', whiteSpace: 'nowrap',
+              fontWeight: tab === t.id ? 700 : 400,
             }}>
               {t.label}
             </button>
           ))}
         </div>
 
-        {/* TAB: DETAIL */}
+        {/* ─── DETAIL ─── */}
         {tab === 'detail' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(130px,1fr))', gap: 8 }}>
-              {[
-                { l: 'Assigné à', v: assigne?.nom || '—' },
-                { l: 'Créé par', v: createur?.nom || '—' },
-                { l: 'Catégorie', v: action.categorie },
-                { l: 'Service', v: assigne?.service || '—' },
-                { l: 'Création', v: formatDate(action.dateCreation) },
-                { l: 'Échéance', v: action.dateLimite ? formatDate(action.dateLimite) : '—' },
-                { l: 'Durée attendue', v: action.dureeAttendue ? `${action.dureeAttendue}h` : '—' },
-                { l: 'Durée réelle', v: dureeReelle !== null ? `${dureeReelle}h` : 'En cours' },
-              ].map(({ l, v }) => (
+              {metaItems.map(({ l, v }) => (
                 <div key={l} style={{ background: '#f5f4f0', borderRadius: 8, padding: '8px 10px' }}>
-                  <div style={S.label}>{l}</div>
+                  <div style={{ fontSize: 9, color: '#7a7672', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 3 }}>{l}</div>
                   <div style={{ fontSize: 11, color: '#1a1a18', fontWeight: 600 }}>{v}</div>
                 </div>
               ))}
@@ -136,19 +144,20 @@ export default function ActionDetail({ actionId, actions, users, currentUser, on
             )}
             {action.retardMotif && (
               <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: 12 }}>
-                <div style={S.label}>Motif du retard</div>
+                <div style={{ fontSize: 9, color: '#92400e', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 4 }}>Motif du retard</div>
                 <div style={{ color: '#92400e', fontSize: 12, fontWeight: 600 }}>{action.retardMotif}</div>
                 {action.retardDetails && <div style={{ color: '#4a4844', fontSize: 11, marginTop: 4 }}>{action.retardDetails}</div>}
               </div>
             )}
             {action.echecMotif && (
               <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: 12 }}>
-                <div style={S.label}>Non réalisé</div>
+                <div style={{ fontSize: 9, color: '#991b1b', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 4 }}>Non réalisé</div>
                 <div style={{ color: '#991b1b', fontSize: 12, fontWeight: 600 }}>{action.echecMotif}</div>
                 {action.echecDetails && <div style={{ color: '#4a4844', fontSize: 11, marginTop: 4 }}>{action.echecDetails}</div>}
               </div>
             )}
-            {canEdit && currentUser.role !== 'agent' && (
+            {/* Changer statut — managers seulement, même si validé */}
+            {currentUser.role !== 'agent' && (
               <div style={{ background: '#f5f4f0', borderRadius: 8, padding: 12 }}>
                 <Lbl>Changer le statut</Lbl>
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -163,7 +172,7 @@ export default function ActionDetail({ actionId, actions, users, currentUser, on
           </div>
         )}
 
-        {/* TAB: ETAPES */}
+        {/* ─── ETAPES ─── */}
         {tab === 'etapes' && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -175,12 +184,12 @@ export default function ActionDetail({ actionId, actions, users, currentUser, on
               {action.etapes.map((e, i) => (
                 <div
                   key={e.id}
-                  onClick={() => canEdit && toggleEtape(i)}
+                  onClick={() => canEditAction && toggleEtape(i)}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px',
                     background: e.fait ? '#f0fdf4' : '#f5f4f0',
                     border: `1px solid ${e.fait ? '#86efac' : '#d4cfc8'}`,
-                    borderRadius: 8, cursor: canEdit ? 'pointer' : 'default', transition: 'all .15s',
+                    borderRadius: 8, cursor: canEditAction ? 'pointer' : 'default', transition: 'all .15s',
                   }}
                 >
                   <div style={{
@@ -201,7 +210,7 @@ export default function ActionDetail({ actionId, actions, users, currentUser, on
           </div>
         )}
 
-        {/* TAB: COMMENTAIRES */}
+        {/* ─── COMMENTAIRES ─── */}
         {tab === 'comm' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {action.commentaires.length === 0 && (
@@ -220,18 +229,17 @@ export default function ActionDetail({ actionId, actions, users, currentUser, on
                   {c.photos && c.photos.length > 0 && (
                     <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                       {c.photos.map((src, i) => (
-                        <img
-                          key={i} src={src} alt=""
-                          onClick={() => setLightbox(src)}
-                          style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #d4cfc8', cursor: 'pointer' }}
-                        />
+                        <img key={i} src={src} alt="" onClick={() => setLightbox(src)}
+                          style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #d4cfc8', cursor: 'pointer' }} />
                       ))}
                     </div>
                   )}
                 </div>
               );
             })}
-            {canEdit && (
+
+            {/* Formulaire commentaire — toujours accessible */}
+            {canComment && (
               <div style={{ marginTop: 4 }}>
                 <Textarea
                   value={newComment}
@@ -239,16 +247,33 @@ export default function ActionDetail({ actionId, actions, users, currentUser, on
                   placeholder="Ajouter un commentaire..."
                   style={{ height: 80, marginBottom: 10 }}
                 />
-                {/* Photo upload */}
-                <label style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer',
-                  background: '#f5f4f0', border: '2px dashed #c4bfb8', borderRadius: 8,
-                  padding: '10px 16px', fontSize: 11, color: '#7a7672', width: '100%',
-                  justifyContent: 'center', marginBottom: 10, transition: 'border-color .15s',
-                }}>
-                  📷 Cliquer pour ajouter des photos ({pendingPhotos.length}/3)
-                  <input type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handlePhotoUpload} />
-                </label>
+
+                {/* Zone upload photos */}
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    border: '2px dashed #c4bfb8', borderRadius: 8, padding: '14px 16px',
+                    textAlign: 'center', cursor: 'pointer', background: '#f5f4f0',
+                    marginBottom: 10, transition: 'border-color .15s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = '#2563eb'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = '#c4bfb8'}
+                >
+                  <div style={{ fontSize: 18, marginBottom: 4 }}>📷</div>
+                  <div style={{ fontSize: 11, color: '#7a7672' }}>
+                    Cliquer pour ajouter des photos ({pendingPhotos.length}/3)
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    style={{ display: 'none' }}
+                    onChange={handlePhotoUpload}
+                  />
+                </div>
+
+                {/* Aperçu photos */}
                 {pendingPhotos.length > 0 && (
                   <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
                     {pendingPhotos.map((src, i) => (
@@ -257,22 +282,24 @@ export default function ActionDetail({ actionId, actions, users, currentUser, on
                         <button
                           onClick={() => setPendingPhotos(p => p.filter((_, j) => j !== i))}
                           style={{
-                            position: 'absolute', top: -6, right: -6, background: '#dc2626', border: 'none',
-                            borderRadius: '50%', width: 18, height: 18, color: '#fff', fontSize: 10, cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
+                            position: 'absolute', top: -6, right: -6, background: '#dc2626',
+                            border: 'none', borderRadius: '50%', width: 18, height: 18,
+                            color: '#fff', fontSize: 10, cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
                           }}
                         >✕</button>
                       </div>
                     ))}
                   </div>
                 )}
+
                 <Btn variant="primary" onClick={addComment}>Envoyer</Btn>
               </div>
             )}
           </div>
         )}
 
-        {/* TAB: JOURNAL */}
+        {/* ─── JOURNAL ─── */}
         {tab === 'journal' && (
           <div>
             {[...action.journal].reverse().map((j, i) => {
@@ -291,7 +318,7 @@ export default function ActionDetail({ actionId, actions, users, currentUser, on
                       </span>
                       <span style={{ fontSize: 9, color: '#a09c98', marginLeft: 'auto' }}>{formatDate(j.date)}</span>
                     </div>
-                    <div style={{ color: '#4a4844', fontSize: 11 }}>{j.action}</div>
+                    <div style={{ fontSize: 11, color: '#4a4844' }}>{j.action}</div>
                   </div>
                 </div>
               );
@@ -299,11 +326,11 @@ export default function ActionDetail({ actionId, actions, users, currentUser, on
           </div>
         )}
 
-    {/* ─── QR CODE ─── */}
+        {/* ─── QR CODE ─── */}
         {tab === 'qr' && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
             <div style={{ fontSize: 11, color: '#7a7672', textAlign: 'center', maxWidth: 280 }}>
-              L'agent scanne ce QR avec son téléphone pour valider la mission directement.
+              L'agent scanne ce QR avec son téléphone pour valider la mission. Le manager reçoit une notification immédiate.
             </div>
             <div style={{ background: '#f5f4f0', padding: 20, borderRadius: 14, border: '1px solid #d4cfc8', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <QRCode token={action.qrToken} size={160} />
@@ -317,22 +344,7 @@ export default function ActionDetail({ actionId, actions, users, currentUser, on
             </div>
             {!['VALIDÉ', 'ARCHIVÉ', 'REJETÉ'].includes(action.statut) ? (
               <div style={{ display: 'flex', gap: 8, width: '100%' }}>
-                <button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/validate/${action.qrToken}`)}
-                  style={{ flex: 1, background: '#fff', border: '1px solid #c4bfb8', borderRadius: 8, padding: '8px 0', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
-                  📋 Copier le lien
-                </button>
-                <button onClick={() => { onClose(); onQRScan(action.id); }}
-                  style={{ flex: 1, background: '#065f46', color: '#6ee7b7', border: '1px solid #059669', borderRadius: 8, padding: '8px 0', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                  📱 Simuler le scan
-                </button>
-              </div>
-            ) : (
-              <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '10px 18px', color: '#16a34a', fontSize: 11, fontWeight: 700 }}>
-                ✓ Action validée — {formatDate(action.dateFin)}
-              </div>
-            )}
-          </div>
-        )}
+                <button
                   onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/validate/${action.qrToken}`); }}
                   style={{ flex: 1, background: '#fff', border: '1px solid #c4bfb8', borderRadius: 8, padding: '8px 0', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}
                 >
@@ -356,10 +368,7 @@ export default function ActionDetail({ actionId, actions, users, currentUser, on
 
       {/* Lightbox */}
       {lightbox && (
-        <div
-          onClick={() => setLightbox(null)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out' }}
-        >
+        <div onClick={() => setLightbox(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out' }}>
           <img src={lightbox} alt="" style={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: 10 }} />
         </div>
       )}
