@@ -299,11 +299,11 @@ export default function ActionDetail({ actionId, actions, users, currentUser, on
           </div>
         )}
 
-        {/* ─── QR CODE ─── */}
+    {/* ─── QR CODE ─── */}
         {tab === 'qr' && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
             <div style={{ fontSize: 11, color: '#7a7672', textAlign: 'center', maxWidth: 280 }}>
-              L'agent scanne ce QR avec son téléphone pour valider la mission. Le manager reçoit une notification immédiate.
+              L'agent scanne ce QR avec son téléphone pour valider la mission directement.
             </div>
             <div style={{ background: '#f5f4f0', padding: 20, borderRadius: 14, border: '1px solid #d4cfc8', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <QRCode token={action.qrToken} size={160} />
@@ -317,7 +317,22 @@ export default function ActionDetail({ actionId, actions, users, currentUser, on
             </div>
             {!['VALIDÉ', 'ARCHIVÉ', 'REJETÉ'].includes(action.statut) ? (
               <div style={{ display: 'flex', gap: 8, width: '100%' }}>
-                <button
+                <button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/validate/${action.qrToken}`)}
+                  style={{ flex: 1, background: '#fff', border: '1px solid #c4bfb8', borderRadius: 8, padding: '8px 0', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  📋 Copier le lien
+                </button>
+                <button onClick={() => { onClose(); onQRScan(action.id); }}
+                  style={{ flex: 1, background: '#065f46', color: '#6ee7b7', border: '1px solid #059669', borderRadius: 8, padding: '8px 0', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  📱 Simuler le scan
+                </button>
+              </div>
+            ) : (
+              <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '10px 18px', color: '#16a34a', fontSize: 11, fontWeight: 700 }}>
+                ✓ Action validée — {formatDate(action.dateFin)}
+              </div>
+            )}
+          </div>
+        )}
                   onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/validate/${action.qrToken}`); }}
                   style={{ flex: 1, background: '#fff', border: '1px solid #c4bfb8', borderRadius: 8, padding: '8px 0', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}
                 >
