@@ -14,6 +14,7 @@ import ActionDetail from './components/ActionDetail';
 import QRModal from './components/QRModal';
 import NewActionModal from './components/NewActionModal';
 import NotifPanel from './components/NotifPanel';
+import ExportRapport from './components/ExportRapport';
 import { gid, nowISO, INITIAL_PROJETS } from './data/initial';
 
 const CSS = `
@@ -85,6 +86,7 @@ export default function App() {
   const [notifs, setNotifs] = useState([]);
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [showExport, setShowExport] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
@@ -111,12 +113,10 @@ export default function App() {
 
   useEffect(() => {
     if (!currentUser) return;
-    const channel = supabase
-      .channel('actions-changes')
+    const channel = supabase.channel('actions-changes')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'actions' }, (payload) => {
         setActions(p => p.map(a => a.id === payload.new.id ? dbToAction(payload.new) : a));
-      })
-      .subscribe();
+      }).subscribe();
     return () => supabase.removeChannel(channel);
   }, [currentUser]);
 
@@ -124,13 +124,11 @@ export default function App() {
     if (!currentUser) return;
     supabase.from('notifications').select('id', { count: 'exact' }).eq('user_id', currentUser.id).eq('lu', false)
       .then(({ count }) => setUnreadCount(count || 0));
-    const channel = supabase
-      .channel('notifs-' + currentUser.id)
+    const channel = supabase.channel('notifs-' + currentUser.id)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${currentUser.id}` }, (payload) => {
         setUnreadCount(p => p + 1);
         pushNotif(payload.new.titre, payload.new.message, payload.new.type || 'info');
-      })
-      .subscribe();
+      }).subscribe();
     return () => supabase.removeChannel(channel);
   }, [currentUser, pushNotif]);
 
@@ -139,13 +137,10 @@ export default function App() {
     try {
       const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
       if (profile) setCurrentUser(profileToUser(profile));
-
       const orgId = profile?.org_id;
       if (!orgId) { setLoading(false); return; }
-
       const { data: profiles } = await supabase.from('profiles').select('*').eq('org_id', orgId).order('nom');
       if (profiles) setUsersState(profiles.map(profileToUser));
-
       const { data: projetsData } = await supabase.from('projets').select('*').eq('org_id', orgId).order('created_at', { ascending: false });
       if (projetsData && projetsData.length > 0) {
         if (profile.role === 'agent') {
@@ -156,15 +151,16 @@ export default function App() {
       } else {
         await seedInitialData(profile);
       }
-
-      let actionsQuery = supabase.from('actions').select('*').eq('org_id', orgId).order('date_creation', { ascending: false });
-      if (profile.role === 'agent') actionsQuery = actionsQuery.eq('assigne_a', profile.id);
-      const { data: actionsData } = await actionsQuery;
-      if (actionsData) setActions(actionsData.map(dbToAction));
-
+      const { data: allActionsData } = await supabase.from('actions').select('*').eq('org_id', orgId).order('date_creation', { ascending: false });
+      if (allActionsData) {
+        if (profile.role === 'agent') {
+          setActions(allActionsData.filter(a => a.assigne_a === profile.id || (a.assignes || []).some(x => x.userId === profile.id)).map(dbToAction));
+        } else {
+          setActions(allActionsData.map(dbToAction));
+        }
+      }
       const { data: groupesData } = await supabase.from('groupes').select('*').eq('org_id', orgId).order('created_at', { ascending: false });
       if (groupesData) setGroupes(groupesData.map(g => ({ id:g.id, nom:g.nom, description:g.description||'', couleur:g.couleur||'#2563eb', managerId:g.manager_id, membres:g.membres||[] })));
-
     } catch (e) { console.error('Load error:', e); }
     setLoading(false);
   };
@@ -206,7 +202,7 @@ export default function App() {
       user_id: a.userId,
       titre: '🆕 Nouvelle mission assignée',
       message: `"${newAction.titre}" vous a été assignée par ${currentUser?.nom}.`,
-     type: 'new', lu: false, org_id: orgId, action_id: newAction.id,
+      type: 'new', lu: false, org_id: orgId, action_id: newAction.id,
     }));
     if (notifInserts.length > 0) await supabase.from('notifications').insert(notifInserts);
   }, [currentUser]);
@@ -347,6 +343,11 @@ export default function App() {
                   </span>
                 )}
               </button>
+              {currentUser.role !== 'agent' && (
+                <button onClick={() => setShowExport(true)} style={{ background:'#f5f4f0', border:'1px solid #d4cfc8', borderRadius:8, padding:'7px 12px', cursor:'pointer', fontSize:11, fontFamily:'inherit', fontWeight:700, color:'#4a4844' }}>
+                  📊 Rapport
+                </button>
+              )}
               {currentUser.role !== 'agent' && <Btn variant="primary" onClick={() => setShowNew(true)}>+ Nouvelle mission</Btn>}
             </div>
           </div>
@@ -367,7 +368,8 @@ export default function App() {
       {qrActionId && <QRModal actionId={qrActionId} actions={actions} currentUser={currentUser} onClose={() => setQrActionId(null)} onValidate={handleQRValidate} />}
       {showNew && <NewActionModal users={users} projets={projets} groupes={groupes} currentUser={currentUser} onClose={() => setShowNew(false)} onCreate={createAction} />}
       <NotifStack notifs={notifs} dismiss={dismissNotif} />
-     {showNotifPanel && <NotifPanel currentUser={currentUser} onClose={() => { setShowNotifPanel(false); setUnreadCount(0); }} onSelectAction={setSelectedActionId} />}
+      {showNotifPanel && <NotifPanel currentUser={currentUser} onClose={() => { setShowNotifPanel(false); setUnreadCount(0); }} onSelectAction={setSelectedActionId} />}
+      {showExport && <ExportRapport actions={actions} users={users} projets={projets} currentUser={currentUser} onClose={() => setShowExport(false)} />}
     </>
   );
 }
