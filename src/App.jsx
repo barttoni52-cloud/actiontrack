@@ -369,7 +369,7 @@ export default function App() {
       {showNew && <NewActionModal users={users} projets={projets} groupes={groupes} currentUser={currentUser} onClose={() => setShowNew(false)} onCreate={createAction} />}
       <NotifStack notifs={notifs} dismiss={dismissNotif} />
       {showNotifPanel && <NotifPanel currentUser={currentUser} onClose={() => { setShowNotifPanel(false); setUnreadCount(0); }} onSelectAction={setSelectedActionId} />}
-      {showExport && <ExportRapport actions={actions} users={users} projets={projets} currentUser={currentUser} onClose={() => setShowExport(false)} />}
+     {showExport && <ExportRapport actions={actions} users={users} projets={projets} groupes={groupes} currentUser={currentUser} onClose={() => setShowExport(false)} />}
     </>
   );
 }
