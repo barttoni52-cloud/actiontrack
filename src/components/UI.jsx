@@ -161,7 +161,7 @@ export function Card({ children, style = {} }) {
 // ─── QR CODE (vraie librairie qrcode) ────────────────────────────────────────
 export function QRCode({ token, size = 130 }) {
   const [dataUrl, setDataUrl] = React.useState(null);
-  const url = `${window.location.origin}/validate/${token}`;
+  const url = `https://actiontrack-eight.vercel.app/validate/${token}`;
 
   React.useEffect(() => {
     import('qrcode').then(QR => {
