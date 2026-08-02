@@ -237,12 +237,12 @@ export default function ActionDetail({ actionId, actions, users, currentUser, on
             <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:8, padding:'10px 14px', fontSize:11, color:'#1d4ed8', textAlign:'center', width:'100%' }}>
               🔗 URL de validation :<br />
               <span style={{ fontFamily:'monospace', fontSize:10, wordBreak:'break-all' }}>
-                {https://actiontrack-eight.vercel.app}/validate/{action.qrToken}
+                https://actiontrack-eight.vercel.app/validate/{action.qrToken}
               </span>
             </div>
             {!['VALIDÉ','ARCHIVÉ','REJETÉ'].includes(action.statut) ? (
-            <div style={{ display:'flex', gap:8, width:'100%' }}>
-                <button onClick={() => navigator.clipboard.writeText(`${https://actiontrack-eight.vercel.app}/validate/${action.qrToken}`)}
+              <div style={{ display:'flex', gap:8, width:'100%' }}>
+                <button onClick={() => navigator.clipboard.writeText(`https://actiontrack-eight.vercel.app/validate/${action.qrToken}`)}
                   style={{ flex:1, background:'#fff', border:'1px solid #c4bfb8', borderRadius:8, padding:'10px 0', fontSize:11, cursor:'pointer', fontFamily:'inherit' }}>
                   📋 Copier le lien de validation
                 </button>
