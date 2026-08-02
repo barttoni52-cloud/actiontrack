@@ -14,7 +14,7 @@ export default function Equipe({ users, actions, setUsers, currentUser }) {
         )}
       </div>
 
-      {showInvite && <InviteModal onClose={() => setShowInvite(false)} users={users} />}
+      {showInvite && <InviteModal onClose={() => setShowInvite(false)} users={users} currentUser={currentUser} />}
 
       <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '10px 14px', fontSize: 11, color: '#1d4ed8' }}>
         💡 Pour inviter un nouveau membre, cliquez sur "Inviter un membre". Le mot de passe généré sera affiché pour que vous puissiez le transmettre.
