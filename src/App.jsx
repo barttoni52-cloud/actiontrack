@@ -86,7 +86,7 @@ export default function App() {
   const [notifs, setNotifs] = useState([]);
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [showExport, setShowExport] = useState(false);
+ {showExport && <ExportRapport actions={actions} users={users} projets={projets} groupes={groupes} currentUser={currentUser} onClose={() => setShowExport(false)} />}
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
