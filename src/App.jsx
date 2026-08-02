@@ -13,6 +13,7 @@ import GestionGroupes from './components/GestionGroupes';
 import ActionDetail from './components/ActionDetail';
 import QRModal from './components/QRModal';
 import NewActionModal from './components/NewActionModal';
+import NotifPanel from './components/NotifPanel';
 import { gid, nowISO, INITIAL_PROJETS } from './data/initial';
 
 const CSS = `
@@ -81,6 +82,8 @@ export default function App() {
   const [qrActionId, setQrActionId] = useState(null);
   const [showNew, setShowNew] = useState(false);
   const [notifs, setNotifs] = useState([]);
+  const [showNotifPanel, setShowNotifPanel] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
@@ -88,12 +91,11 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
- useEffect(() => {
+  useEffect(() => {
     if (!session) { setLoading(false); return; }
     loadAll();
   }, [session]);
 
-  // Recharger quand la fenêtre reprend le focus (agent revient après scan QR)
   useEffect(() => {
     const handleFocus = () => { if (session) loadAll(); };
     window.addEventListener('focus', handleFocus);
@@ -107,17 +109,25 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!currentUser || currentUser.role === 'agent') return;
+    if (!currentUser) return;
     const channel = supabase
-      .channel('actions-realtime')
+      .channel('actions-changes')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'actions' }, (payload) => {
-        const updated = payload.new;
-        if (updated.statut === 'VALIDÉ' || updated.statut === 'REJETÉ') {
-          setActions(p => p.map(a => a.id === updated.id ? dbToAction(updated) : a));
-          const icon = updated.statut === 'VALIDÉ' ? '✅' : '❌';
-          const msg = updated.statut === 'VALIDÉ' ? 'validée via QR Code' : 'signalée non réalisée';
-          pushNotif(`${icon} Mission ${updated.statut === 'VALIDÉ' ? 'validée' : 'rejetée'}`, `"${updated.titre}" ${msg}.`, updated.statut === 'VALIDÉ' ? 'success' : 'warning');
-        }
+        setActions(p => p.map(a => a.id === payload.new.id ? dbToAction(payload.new) : a));
+      })
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    supabase.from('notifications').select('id', { count: 'exact' }).eq('user_id', currentUser.id).eq('lu', false)
+      .then(({ count }) => setUnreadCount(count || 0));
+    const channel = supabase
+      .channel('notifs-' + currentUser.id)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${currentUser.id}` }, (payload) => {
+        setUnreadCount(p => p + 1);
+        pushNotif(payload.new.titre, payload.new.message, payload.new.type || 'info');
       })
       .subscribe();
     return () => supabase.removeChannel(channel);
@@ -182,7 +192,15 @@ export default function App() {
   const createAction = useCallback(async (newAction) => {
     setActions(p => [newAction, ...p]);
     await supabase.from('actions').insert([actionToDB(newAction)]);
-  }, []);
+    const notifInserts = (newAction.assignes || []).map(a => ({
+      id: 'N-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2,5).toUpperCase(),
+      user_id: a.userId,
+      titre: '🆕 Nouvelle mission assignée',
+      message: `"${newAction.titre}" vous a été assignée par ${currentUser?.nom}.`,
+      type: 'new', lu: false,
+    }));
+    if (notifInserts.length > 0) await supabase.from('notifications').insert(notifInserts);
+  }, [currentUser]);
 
   const setProjets = useCallback(async (updater) => {
     const newProjets = typeof updater === 'function' ? updater(projets) : updater;
@@ -223,20 +241,13 @@ export default function App() {
         : `❌ Non réalisée : ${echecMotif}`,
       date: nowISO(), type: newStatut === 'VALIDÉ' ? 'validation' : 'rejet',
     };
-    const updatedJournal = [...(action?.journal || []), journalEntry];
-    const fullPatch = { ...patch, journal: updatedJournal };
+    const fullPatch = { ...patch, journal: [...(action?.journal || []), journalEntry] };
     setActions(p => p.map(a => a.id === actionId ? { ...a, ...fullPatch } : a));
     await supabase.from('actions').update(actionToDB({ ...action, ...fullPatch })).eq('id', actionId);
-    const agentProfile = users.find(u => u.id === currentUser.id);
-    const manager = agentProfile?.managerId ? users.find(u => u.id === agentProfile.managerId) : null;
-    const managerInfo = manager ? ` — ${manager.nom} notifié.` : '';
-    pushNotif(
-      newStatut === 'VALIDÉ' ? '✅ Mission validée !' : '❌ Échec signalé',
-      `"${action?.titre}" ${newStatut === 'VALIDÉ' ? 'validée' : ': ' + echecMotif}.${managerInfo}`,
-      newStatut === 'VALIDÉ' ? 'success' : 'warning'
-    );
+    pushNotif(newStatut === 'VALIDÉ' ? '✅ Mission validée !' : '❌ Échec signalé',
+      `"${action?.titre}" ${newStatut === 'VALIDÉ' ? 'validée' : ': ' + echecMotif}.`, newStatut === 'VALIDÉ' ? 'success' : 'warning');
     setQrActionId(null);
-  }, [actions, currentUser, pushNotif, users]);
+  }, [actions, currentUser, pushNotif]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -317,7 +328,17 @@ export default function App() {
         <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0 }}>
           <div style={{ padding:'12px 22px', borderBottom:'1px solid #d4cfc8', display:'flex', alignItems:'center', justifyContent:'space-between', background:'#fff' }}>
             <div style={{ fontWeight:800, fontSize:15, color:'#1a1a18' }}>{NAV.find(n=>n.id===view)?.label||'—'}</div>
-            {currentUser.role !== 'agent' && <Btn variant="primary" onClick={() => setShowNew(true)}>+ Nouvelle mission</Btn>}
+            <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+              <button onClick={() => setShowNotifPanel(p => !p)} style={{ position:'relative', background:'#f5f4f0', border:'1px solid #d4cfc8', borderRadius:8, padding:'7px 10px', cursor:'pointer', fontSize:16 }}>
+                🔔
+                {unreadCount > 0 && (
+                  <span style={{ position:'absolute', top:-5, right:-5, background:'#dc2626', color:'#fff', borderRadius:'50%', width:16, height:16, fontSize:9, fontWeight:900, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+              {currentUser.role !== 'agent' && <Btn variant="primary" onClick={() => setShowNew(true)}>+ Nouvelle mission</Btn>}
+            </div>
           </div>
           <div style={{ flex:1, padding:22, overflowY:'auto' }}>
             {view==='dashboard'   && <Dashboard   {...viewProps} onSelectAction={setSelectedActionId} />}
@@ -336,6 +357,7 @@ export default function App() {
       {qrActionId && <QRModal actionId={qrActionId} actions={actions} currentUser={currentUser} onClose={() => setQrActionId(null)} onValidate={handleQRValidate} />}
       {showNew && <NewActionModal users={users} projets={projets} groupes={groupes} currentUser={currentUser} onClose={() => setShowNew(false)} onCreate={createAction} />}
       <NotifStack notifs={notifs} dismiss={dismissNotif} />
+      {showNotifPanel && <NotifPanel currentUser={currentUser} onClose={() => { setShowNotifPanel(false); setUnreadCount(0); }} />}
     </>
   );
 }
