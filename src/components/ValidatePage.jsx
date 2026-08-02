@@ -26,24 +26,17 @@ export default function ValidatePage({ token }) {
   const loadAction = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabaseAnon
-        .from('actions')
-        .select('*')
-        .eq('qr_token', token)
-        .single();
+      const { data, error } = await supabaseAnon.from('actions').select('*').eq('qr_token', token).single();
       if (data && !error) {
         setAction(data);
-        if (['VALIDÉ', 'ARCHIVÉ', 'REJETÉ'].includes(data.statut)) setStep('already');
-      } else {
-        setStep('error');
-      }
+        if (['VALIDÉ','ARCHIVÉ','REJETÉ'].includes(data.statut)) setStep('already');
+      } else { setStep('error'); }
     } catch (e) { setStep('error'); }
     setLoading(false);
   };
 
   const handlePhoto = (e) => {
-    const files = Array.from(e.target.files);
-    files.slice(0, 3 - photos.length).forEach(f => {
+    Array.from(e.target.files).slice(0, 3 - photos.length).forEach(f => {
       const r = new FileReader();
       r.onload = ev => setPhotos(p => [...p, ev.target.result].slice(0, 3));
       r.readAsDataURL(f);
@@ -80,10 +73,24 @@ export default function ValidatePage({ token }) {
       journal: [...(action.journal || []), journalEntry],
       commentaires: newComment ? [...(action.commentaires || []), newComment] : (action.commentaires || []),
     }).eq('qr_token', token);
-   setStep('success');
+
+    // Notifier le manager
+    try {
+      const { data: agentProfile } = await supabaseAnon.from('profiles').select('manager_id, nom').eq('id', action.assigne_a).single();
+      if (agentProfile?.manager_id) {
+        await supabaseAnon.from('notifications').insert([{
+          id: 'N-' + Date.now().toString(36).toUpperCase(),
+          user_id: agentProfile.manager_id,
+          titre: newStatut === 'VALIDÉ' ? '✅ Mission validée' : '❌ Mission rejetée',
+          message: `"${action.titre}" ${newStatut === 'VALIDÉ' ? 'validée' : 'non réalisée'} par ${agentProfile.nom} le ${new Date().toLocaleString('fr-FR')}.`,
+          type: newStatut === 'VALIDÉ' ? 'success' : 'warning',
+          lu: false,
+        }]);
+      }
+    } catch (e) { console.error('Notif error:', e); }
+
+    setStep('success');
     setSubmitting(false);
-    // Forcer rechargement après 2 secondes
-    setTimeout(() => window.location.reload(), 3000);
   };
 
   const S = {
@@ -129,9 +136,9 @@ export default function ValidatePage({ token }) {
   if (step === 'success') return (
     <div style={S.wrap}><div style={S.card}>
       <div style={{ textAlign:'center', padding:'20px 0' }}>
-        <div style={{ fontSize:50, marginBottom:12 }}>{mode === 'valider' ? '✅' : '❌'}</div>
+        <div style={{ fontSize:50, marginBottom:12 }}>{mode==='valider'?'✅':'❌'}</div>
         <div style={{ fontSize:16, fontWeight:800, color:mode==='valider'?'#16a34a':'#dc2626', marginBottom:8 }}>
-          {mode === 'valider' ? 'Mission validée !' : 'Signalement envoyé'}
+          {mode==='valider'?'Mission validée !':'Signalement envoyé'}
         </div>
         <div style={{ fontSize:13, color:'#1a1a18', fontWeight:600, marginBottom:4 }}>{action?.titre}</div>
         <div style={{ fontSize:12, color:'#7a7672', marginTop:8 }}>Le manager a été notifié.</div>
@@ -147,23 +154,16 @@ export default function ValidatePage({ token }) {
           <div style={{ fontSize:9, color:'#a09c98', letterSpacing:'.2em', marginBottom:16 }}>VALIDATION DE MISSION</div>
           <div style={{ fontSize:17, fontWeight:800, color:'#1a1a18', lineHeight:1.3 }}>{action?.titre}</div>
           {action?.description && <div style={{ fontSize:12, color:'#7a7672', marginTop:6, lineHeight:1.5 }}>{action.description}</div>}
-          {isOverdue && (
-            <div style={{ background:'#fef2f2', border:'1px solid #fca5a5', borderRadius:8, padding:'8px 12px', color:'#dc2626', fontSize:11, marginTop:10 }}>
-              ⚠ Cette mission est en retard
-            </div>
-          )}
+          {isOverdue && <div style={{ background:'#fef2f2', border:'1px solid #fca5a5', borderRadius:8, padding:'8px 12px', color:'#dc2626', fontSize:11, marginTop:10 }}>⚠ Cette mission est en retard</div>}
         </div>
 
         <label style={S.label}>Commentaire <span style={{ color:'#a09c98', fontWeight:400 }}>(optionnel)</span></label>
-        <textarea value={comment} onChange={e => setComment(e.target.value)}
-          placeholder="Décrivez ce qui a été fait..."
-          style={{ ...S.input, height:90, resize:'vertical' }} />
+        <textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="Décrivez ce qui a été fait..." style={{ ...S.input, height:90, resize:'vertical' }} />
 
         <div style={{ marginBottom:14 }}>
           <label style={S.label}>Photos <span style={{ color:'#a09c98', fontWeight:400 }}>(optionnel, max 3)</span></label>
           {photos.length < 3 && (
-            <div onClick={() => fileRef.current?.click()}
-              style={{ border:'2px dashed #c4bfb8', borderRadius:8, padding:'12px', textAlign:'center', cursor:'pointer', background:'#f5f4f0', marginBottom:8 }}>
+            <div onClick={() => fileRef.current?.click()} style={{ border:'2px dashed #c4bfb8', borderRadius:8, padding:'12px', textAlign:'center', cursor:'pointer', background:'#f5f4f0', marginBottom:8 }}>
               <div style={{ fontSize:20, marginBottom:4 }}>📷</div>
               <div style={{ fontSize:11, color:'#7a7672' }}>Appuyer pour ajouter ({photos.length}/3)</div>
               <input ref={fileRef} type="file" accept="image/*" multiple style={{ display:'none' }} onChange={handlePhoto} />
@@ -174,8 +174,7 @@ export default function ValidatePage({ token }) {
               {photos.map((src, i) => (
                 <div key={i} style={{ position:'relative' }}>
                   <img src={src} alt="" style={{ width:80, height:80, objectFit:'cover', borderRadius:8, border:'1px solid #d4cfc8' }} />
-                  <button onClick={() => setPhotos(p => p.filter((_,j) => j!==i))}
-                    style={{ position:'absolute', top:-6, right:-6, background:'#dc2626', border:'none', borderRadius:'50%', width:20, height:20, color:'#fff', fontSize:11, cursor:'pointer' }}>✕</button>
+                  <button onClick={() => setPhotos(p => p.filter((_,j) => j!==i))} style={{ position:'absolute', top:-6, right:-6, background:'#dc2626', border:'none', borderRadius:'50%', width:20, height:20, color:'#fff', fontSize:11, cursor:'pointer' }}>✕</button>
                 </div>
               ))}
             </div>
@@ -189,10 +188,7 @@ export default function ValidatePage({ token }) {
               <option value="">— Sélectionner —</option>
               {MOTIFS_RETARD.map(m => <option key={m}>{m}</option>)}
             </select>
-            {retardMotif && (
-              <textarea value={retardDetails} onChange={e => setRetardDetails(e.target.value)}
-                placeholder="Détails..." style={{ ...S.input, height:60, resize:'vertical' }} />
-            )}
+            {retardMotif && <textarea value={retardDetails} onChange={e => setRetardDetails(e.target.value)} placeholder="Détails..." style={{ ...S.input, height:60, resize:'vertical' }} />}
           </div>
         )}
 
@@ -204,8 +200,7 @@ export default function ValidatePage({ token }) {
               {MOTIFS_ECHEC.map(m => <option key={m}>{m}</option>)}
             </select>
             <label style={{ ...S.label, color:'#dc2626' }}>Détails *</label>
-            <textarea value={echecDetails} onChange={e => setEchecDetails(e.target.value)}
-              placeholder="Expliquez en détail..." style={{ ...S.input, height:70, resize:'vertical' }} />
+            <textarea value={echecDetails} onChange={e => setEchecDetails(e.target.value)} placeholder="Expliquez en détail..." style={{ ...S.input, height:70, resize:'vertical' }} />
           </div>
         )}
 
