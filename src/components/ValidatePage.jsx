@@ -26,7 +26,7 @@ export default function ValidatePage({ token }) {
   const loadAction = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAnon
         .from('actions')
         .select('*')
         .eq('qr_token', token)
@@ -70,7 +70,7 @@ export default function ValidatePage({ token }) {
         : `❌ Non réalisée : ${echecMotif}`,
       date: now, type: newStatut === 'VALIDÉ' ? 'validation' : 'rejet',
     };
-    await supabase.from('actions').update({
+    await supabaseAnon.from('actions').update({
       statut: newStatut,
       date_fin: newStatut === 'VALIDÉ' ? now : null,
       retard_motif: retardMotif || null,
