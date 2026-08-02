@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { formatDate } from '../data/initial';
 
-export default function NotifPanel({ currentUser, onClose }) {
+export default function NotifPanel({ currentUser, onClose, onSelectAction }) {
   const [notifs, setNotifs] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -34,26 +34,24 @@ export default function NotifPanel({ currentUser, onClose }) {
     setNotifs(p => p.map(n => ({ ...n, lu: true })));
   };
 
-  const markRead = async (id) => {
-    await supabase.from('notifications').update({ lu: true }).eq('id', id);
-    setNotifs(p => p.map(n => n.id === id ? { ...n, lu: true } : n));
+  const handleClick = async (n) => {
+    // Marquer comme lu
+    await supabase.from('notifications').update({ lu: true }).eq('id', n.id);
+    setNotifs(p => p.map(x => x.id === n.id ? { ...x, lu: true } : x));
+    // Rediriger si action_id présent
+    if (n.action_id && onSelectAction) {
+      onSelectAction(n.action_id);
+      onClose();
+    }
   };
 
   const unread = notifs.filter(n => !n.lu).length;
 
-  const typeColors = {
-    success: { icon: '✅' },
-    warning: { icon: '❌' },
-    info: { icon: '📋' },
-    new: { icon: '🆕' },
-  };
+  const typeIcons = { success:'✅', warning:'❌', info:'📋', new:'🆕' };
 
   return (
     <>
-      {/* Overlay */}
       <div onClick={onClose} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.2)', zIndex:999 }} />
-
-      {/* Panel */}
       <div style={{ position:'fixed', top:0, right:0, bottom:0, width:360, background:'#fff', borderLeft:'1px solid #d4cfc8', zIndex:1000, display:'flex', flexDirection:'column', boxShadow:'-4px 0 24px rgba(0,0,0,.1)', fontFamily:'monospace' }}>
         <div style={{ padding:'16px 18px', borderBottom:'1px solid #e8e4de', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <div>
@@ -78,29 +76,30 @@ export default function NotifPanel({ currentUser, onClose }) {
               <div style={{ fontSize:12 }}>Aucune notification</div>
             </div>
           )}
-          {notifs.map(n => {
-            const icon = (typeColors[n.type] || typeColors.info).icon;
-            return (
-              <div key={n.id} onClick={() => markRead(n.id)} style={{
-                padding:'12px 18px', borderBottom:'1px solid #f0ede8', cursor:'pointer',
-                background: n.lu ? '#fff' : '#fafaf8',
-              }}
-              onMouseEnter={e => e.currentTarget.style.background='#f5f4f0'}
-              onMouseLeave={e => e.currentTarget.style.background=n.lu?'#fff':'#fafaf8'}>
-                <div style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
-                  <div style={{ fontSize:16, flexShrink:0, marginTop:1 }}>{icon}</div>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:3 }}>
-                      <div style={{ fontWeight:n.lu?600:800, fontSize:12, color:'#1a1a18' }}>{n.titre}</div>
-                      {!n.lu && <div style={{ width:7, height:7, borderRadius:'50%', background:'#7c3aed', flexShrink:0 }} />}
-                    </div>
-                    {n.message && <div style={{ fontSize:11, color:'#7a7672', lineHeight:1.5 }}>{n.message}</div>}
-                    <div style={{ fontSize:9, color:'#a09c98', marginTop:4 }}>{formatDate(n.created_at)}</div>
+          {notifs.map(n => (
+            <div key={n.id} onClick={() => handleClick(n)} style={{
+              padding:'12px 18px', borderBottom:'1px solid #f0ede8',
+              cursor: n.action_id ? 'pointer' : 'default',
+              background: n.lu ? '#fff' : '#fafaf8',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background='#f5f4f0'}
+            onMouseLeave={e => e.currentTarget.style.background=n.lu?'#fff':'#fafaf8'}>
+              <div style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
+                <div style={{ fontSize:16, flexShrink:0, marginTop:1 }}>{typeIcons[n.type] || '📋'}</div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:3 }}>
+                    <div style={{ fontWeight:n.lu?600:800, fontSize:12, color:'#1a1a18' }}>{n.titre}</div>
+                    {!n.lu && <div style={{ width:7, height:7, borderRadius:'50%', background:'#7c3aed', flexShrink:0 }} />}
+                  </div>
+                  {n.message && <div style={{ fontSize:11, color:'#7a7672', lineHeight:1.5 }}>{n.message}</div>}
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:4 }}>
+                    <div style={{ fontSize:9, color:'#a09c98' }}>{formatDate(n.created_at)}</div>
+                    {n.action_id && <div style={{ fontSize:9, color:'#2563eb' }}>Voir la mission →</div>}
                   </div>
                 </div>
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       </div>
     </>
