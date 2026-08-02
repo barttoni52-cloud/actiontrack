@@ -28,6 +28,7 @@ const profileToUser = (p) => ({
   poste: p.poste || '', service: p.service || '',
   avatar: p.avatar || p.nom?.slice(0, 2).toUpperCase() || '??',
   actif: p.actif !== false, managerId: p.manager_id || null,
+  orgId: p.org_id || null,
 });
 
 const dbToAction = (a) => ({
@@ -138,11 +139,16 @@ export default function App() {
     try {
       const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
       if (profile) setCurrentUser(profileToUser(profile));
-      const { data: profiles } = await supabase.from('profiles').select('*').order('nom');
+
+      const orgId = profile?.org_id;
+      if (!orgId) { setLoading(false); return; }
+
+      const { data: profiles } = await supabase.from('profiles').select('*').eq('org_id', orgId).order('nom');
       if (profiles) setUsersState(profiles.map(profileToUser));
-      const { data: projetsData } = await supabase.from('projets').select('*').order('created_at', { ascending: false });
+
+      const { data: projetsData } = await supabase.from('projets').select('*').eq('org_id', orgId).order('created_at', { ascending: false });
       if (projetsData && projetsData.length > 0) {
-        if (profile && profile.role === 'agent') {
+        if (profile.role === 'agent') {
           setProjetsState(projetsData.filter(p => (p.agents || []).includes(profile.id)).map(dbToProjet));
         } else {
           setProjetsState(projetsData.map(dbToProjet));
@@ -150,14 +156,15 @@ export default function App() {
       } else {
         await seedInitialData(profile);
       }
-      let actionsQuery = supabase.from('actions').select('*').order('date_creation', { ascending: false });
-      if (profile && profile.role === 'agent') {
-        actionsQuery = actionsQuery.eq('assigne_a', profile.id);
-      }
+
+      let actionsQuery = supabase.from('actions').select('*').eq('org_id', orgId).order('date_creation', { ascending: false });
+      if (profile.role === 'agent') actionsQuery = actionsQuery.eq('assigne_a', profile.id);
       const { data: actionsData } = await actionsQuery;
       if (actionsData) setActions(actionsData.map(dbToAction));
-      const { data: groupesData } = await supabase.from('groupes').select('*').order('created_at', { ascending: false });
+
+      const { data: groupesData } = await supabase.from('groupes').select('*').eq('org_id', orgId).order('created_at', { ascending: false });
       if (groupesData) setGroupes(groupesData.map(g => ({ id:g.id, nom:g.nom, description:g.description||'', couleur:g.couleur||'#2563eb', managerId:g.manager_id, membres:g.membres||[] })));
+
     } catch (e) { console.error('Load error:', e); }
     setLoading(false);
   };
@@ -166,7 +173,8 @@ export default function App() {
     if (!profile || profile.role !== 'direction') return;
     const { data } = await supabase.from('projets').insert(INITIAL_PROJETS.map(p => ({
       id: p.id, titre: p.titre, description: p.description,
-      manager_id: profile.id, date_debut: p.dateDebut, date_fin: p.dateFin, couleur: p.couleur, actif: true,
+      manager_id: profile.id, date_debut: p.dateDebut, date_fin: p.dateFin,
+      couleur: p.couleur, actif: true, org_id: profile.org_id,
     }))).select();
     if (data) setProjetsState(data.map(dbToProjet));
   };
@@ -190,14 +198,15 @@ export default function App() {
   }, [actions, currentUser]);
 
   const createAction = useCallback(async (newAction) => {
+    const orgId = currentUser?.orgId;
     setActions(p => [newAction, ...p]);
-    await supabase.from('actions').insert([actionToDB(newAction)]);
+    await supabase.from('actions').insert([{ ...actionToDB(newAction), org_id: orgId }]);
     const notifInserts = (newAction.assignes || []).map(a => ({
       id: 'N-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2,5).toUpperCase(),
       user_id: a.userId,
       titre: '🆕 Nouvelle mission assignée',
       message: `"${newAction.titre}" vous a été assignée par ${currentUser?.nom}.`,
-      type: 'new', lu: false,
+      type: 'new', lu: false, org_id: orgId,
     }));
     if (notifInserts.length > 0) await supabase.from('notifications').insert(notifInserts);
   }, [currentUser]);
@@ -205,12 +214,13 @@ export default function App() {
   const setProjets = useCallback(async (updater) => {
     const newProjets = typeof updater === 'function' ? updater(projets) : updater;
     setProjetsState(newProjets);
+    const orgId = currentUser?.orgId;
     const existingIds = projets.map(p => p.id);
     const toInsert = newProjets.filter(p => !existingIds.includes(p.id));
-    if (toInsert.length > 0) await supabase.from('projets').insert(toInsert.map(projetToDB));
+    if (toInsert.length > 0) await supabase.from('projets').insert(toInsert.map(p => ({ ...projetToDB(p), org_id: orgId })));
     const toUpdate = newProjets.filter(p => existingIds.includes(p.id));
     for (const p of toUpdate) await supabase.from('projets').update(projetToDB(p)).eq('id', p.id);
-  }, [projets]);
+  }, [projets, currentUser]);
 
   const setUsers = useCallback(async (updater) => {
     const newUsers = typeof updater === 'function' ? updater(users) : updater;
