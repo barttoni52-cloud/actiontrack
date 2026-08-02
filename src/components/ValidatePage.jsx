@@ -80,8 +80,10 @@ export default function ValidatePage({ token }) {
       journal: [...(action.journal || []), journalEntry],
       commentaires: newComment ? [...(action.commentaires || []), newComment] : (action.commentaires || []),
     }).eq('qr_token', token);
-    setStep('success');
+   setStep('success');
     setSubmitting(false);
+    // Forcer rechargement après 2 secondes
+    setTimeout(() => window.location.reload(), 3000);
   };
 
   const S = {
