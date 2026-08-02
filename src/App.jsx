@@ -367,7 +367,7 @@ export default function App() {
       {qrActionId && <QRModal actionId={qrActionId} actions={actions} currentUser={currentUser} onClose={() => setQrActionId(null)} onValidate={handleQRValidate} />}
       {showNew && <NewActionModal users={users} projets={projets} groupes={groupes} currentUser={currentUser} onClose={() => setShowNew(false)} onCreate={createAction} />}
       <NotifStack notifs={notifs} dismiss={dismissNotif} />
-      {showNotifPanel && <NotifPanel currentUser={currentUser} onClose={() => { setShowNotifPanel(false); setUnreadCount(0); }} />}
+     {showNotifPanel && <NotifPanel currentUser={currentUser} onClose={() => { setShowNotifPanel(false); setUnreadCount(0); }} onSelectAction={setSelectedActionId} />}
     </>
   );
 }
