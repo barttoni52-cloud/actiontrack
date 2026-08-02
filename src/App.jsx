@@ -206,7 +206,7 @@ export default function App() {
       user_id: a.userId,
       titre: '🆕 Nouvelle mission assignée',
       message: `"${newAction.titre}" vous a été assignée par ${currentUser?.nom}.`,
-      type: 'new', lu: false, org_id: orgId,
+     type: 'new', lu: false, org_id: orgId, action_id: newAction.id,
     }));
     if (notifInserts.length > 0) await supabase.from('notifications').insert(notifInserts);
   }, [currentUser]);
