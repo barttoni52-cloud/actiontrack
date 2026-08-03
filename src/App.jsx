@@ -351,7 +351,7 @@ export default function App() {
             ))}
           </nav>
           <div style={{ padding:'12px 14px', borderTop:'1px solid #e8e4de' }}>
-            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
+           <div onClick={() => setShowProfile(true)} style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10, cursor:'pointer' }}>
               <Avatar initials={currentUser.avatar} size={28} />
               <div>
                 <div style={{ fontSize:11, fontWeight:700, color:'#1a1a18' }}>{currentUser.nom.split(' ')[0]}</div>
