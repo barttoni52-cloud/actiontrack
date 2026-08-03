@@ -93,6 +93,7 @@ export default function App() {
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
  const [showExport, setShowExport] = useState(false);
+ const [showProfile, setShowProfile] = useState(false);
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
