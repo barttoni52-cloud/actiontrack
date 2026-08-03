@@ -9,6 +9,7 @@ import Journal from './components/views/Journal';
 import Projets from './components/views/Projets';
 import Equipe from './components/views/Equipe';
 import Archives from './components/views/Archives';
+import PerformanceHistory from './components/views/PerformanceHistory';
 import GestionGroupes from './components/GestionGroupes';
 import ActionDetail from './components/ActionDetail';
 import QRModal from './components/QRModal';
