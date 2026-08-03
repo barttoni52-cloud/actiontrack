@@ -315,6 +315,7 @@ export default function App() {
       { id:'vue_manager', label:'Vue Manager', icon:'▦' },
       { id:'journal', label:'Journal', icon:'≡' },
       { id:'archives', label:'Archives', icon:'🗄' },
+     { id:'historique', label:'Historique', icon:'📈' },
     ] : []),
     ...(currentUser.role !== 'agent' ? [{ id:'groupes', label:'Groupes', icon:'👥' }] : []),
     ...(currentUser.role !== 'agent' ? [{ id:'equipe', label:'Équipe', icon:'◉' }] : []),
