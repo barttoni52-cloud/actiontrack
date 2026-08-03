@@ -5,7 +5,7 @@ import { CATEGORIES, PRIORITES, gid, nowISO } from '../data/initial';
 export default function NewActionModal({ users, projets, groupes, currentUser, onClose, onCreate }) {
   const [form, setForm] = useState({
     titre: '', description: '', categorie: 'Administratif', priorite: 'NORMALE',
-    dateLimite: '', dureeAttendue: '', projetId: '', etapes: '',
+    dateLimite: '', dureeAttendue: '', projetId: '', etapes: '', recurrence: '',
   });
   const [assignMode, setAssignMode] = useState('individuel');
   const [assignes, setAssignes] = useState([]);
@@ -56,6 +56,8 @@ export default function NewActionModal({ users, projets, groupes, currentUser, o
       dureeAttendue: form.dureeAttendue ? parseInt(form.dureeAttendue) : null,
       dateDebut: null, dateFin: null,
       etapes: etapesArr,
+      recurrence: form.recurrence || null,
+      recurrenceParentId: null,
       journal: [{ id:gid('J'), auteurId:currentUser.id, action:`Créée, assignée à : ${assignesData.map(a=>a.nom).join(', ')}.`, date:nowISO(), type:'creation' }],
       commentaires: [], retardMotif: null, retardDetails: '', echecMotif: null, echecDetails: '',
       qrToken: gid('QR'),
@@ -80,7 +82,22 @@ export default function NewActionModal({ users, projets, groupes, currentUser, o
         <Field label="Projet"><Select value={form.projetId} onChange={e => f('projetId', e.target.value)}><option value="">Sans projet</option>{projets.map(p=><option key={p.id} value={p.id}>{p.titre}</option>)}</Select></Field>
         <Field label="Durée attendue (h)"><Input type="number" value={form.dureeAttendue} onChange={e => f('dureeAttendue', e.target.value)} placeholder="Ex: 8" /></Field>
       </div>
-      <Field label="Date limite"><Input type="datetime-local" value={form.dateLimite} onChange={e => f('dateLimite', e.target.value)} /></Field>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+        <Field label="Date limite"><Input type="datetime-local" value={form.dateLimite} onChange={e => f('dateLimite', e.target.value)} /></Field>
+        <Field label="Récurrence">
+          <Select value={form.recurrence} onChange={e => f('recurrence', e.target.value)}>
+            <option value="">Pas de récurrence</option>
+            <option value="quotidien">🔄 Quotidienne</option>
+            <option value="hebdomadaire">🔄 Hebdomadaire</option>
+            <option value="mensuel">🔄 Mensuelle</option>
+          </Select>
+        </Field>
+      </div>
+      {form.recurrence && (
+        <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:8, padding:'8px 14px', fontSize:11, color:'#1d4ed8', marginBottom:8 }}>
+          🔄 Cette mission sera recréée automatiquement après validation ({form.recurrence}).
+        </div>
+      )}
 
       <div style={{ marginBottom:12 }}>
         <div style={{ fontSize:9, color:'#7a7672', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:8 }}>Assignation *</div>
@@ -138,7 +155,6 @@ export default function NewActionModal({ users, projets, groupes, currentUser, o
                 })}
               </div>
             )}
-            {groupes?.length === 0 && <div style={{ fontSize:11, color:'#a09c98', padding:10, textAlign:'center' }}>Aucun groupe créé — allez dans "Groupes" pour en créer un.</div>}
           </>
         )}
 
