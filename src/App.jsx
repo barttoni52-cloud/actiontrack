@@ -402,6 +402,7 @@ export default function App() {
       <NotifStack notifs={notifs} dismiss={dismissNotif} />
       {showNotifPanel && <NotifPanel currentUser={currentUser} onClose={() => { setShowNotifPanel(false); setUnreadCount(0); }} onSelectAction={setSelectedActionId} />}
      {showExport && <ExportRapport actions={actions} users={users} projets={projets} groupes={groupes} currentUser={currentUser} onClose={() => setShowExport(false)} />}
+   {showProfile && <ProfileModal currentUser={currentUser} actions={actions} onClose={() => setShowProfile(false)} onUserUpdated={setCurrentUser} />}
     </>
   );
 }
