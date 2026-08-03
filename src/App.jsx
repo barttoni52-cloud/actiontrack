@@ -255,6 +255,30 @@ export default function App() {
     await supabase.from('actions').update(actionToDB({ ...action, ...fullPatch })).eq('id', actionId);
     pushNotif(newStatut === 'VALIDÉ' ? '✅ Mission validée !' : '❌ Échec signalé',
       `"${action?.titre}" ${newStatut === 'VALIDÉ' ? 'validée' : ': ' + echecMotif}.`, newStatut === 'VALIDÉ' ? 'success' : 'warning');
+   if (newStatut === 'VALIDÉ' && action?.recurrence) {
+      const nextDate = new Date();
+      if (action.recurrence === 'quotidien') nextDate.setDate(nextDate.getDate() + 1);
+      else if (action.recurrence === 'hebdomadaire') nextDate.setDate(nextDate.getDate() + 7);
+      else if (action.recurrence === 'mensuel') nextDate.setMonth(nextDate.getMonth() + 1);
+      const newRecAction = {
+        ...actionToDB(action),
+        id: gid('ACT'),
+        statut: 'OUVERT',
+        date_creation: nowISO(),
+        date_debut: null, date_fin: null,
+        date_limite: nextDate.toISOString(),
+        retard_motif: null, retard_details: null,
+        echec_motif: null, echec_details: null,
+        qr_token: gid('QR'),
+        recurrence_parent_id: action.id,
+        journal: [{ id: gid('J'), auteurId: currentUser.id, action: `🔄 Recréée automatiquement (${action.recurrence}).`, date: nowISO(), type: 'creation' }],
+        commentaires: [],
+        etapes: (action.etapes || []).map(e => ({ ...e, fait: false, dateFait: null })),
+      };
+      await supabase.from('actions').insert([newRecAction]);
+      setActions(p => [dbToAction(newRecAction), ...p]);
+      pushNotif('🔄 Mission récurrente', `"${action.titre}" recréée (${action.recurrence}).`, 'info');
+    }
     setQrActionId(null);
   }, [actions, currentUser, pushNotif]);
 
