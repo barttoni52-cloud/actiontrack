@@ -95,7 +95,8 @@ export default function Actions({ actions, users, projets, currentUser, onSelect
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 10, background: '#f5f4f0', color: '#4a4844', padding: '2px 8px', borderRadius: 99 }}>{a.categorie}</span>
                   <PrioBadge priorite={a.priorite} />
-                  <Badge statut={a.statut} />
+                 <Badge statut={a.statut} />
+                  {a.recurrence && <span style={{ fontSize: 9, background: '#eff6ff', color: '#2563eb', padding: '2px 8px', borderRadius: 99, fontWeight: 700 }}>🔄 {a.recurrence}</span>}
                   <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
                     {!['VALIDÉ', 'ARCHIVÉ', 'REJETÉ'].includes(a.statut) && (
                       <Btn onClick={() => onQRScan(a.id)} style={{ padding: '3px 8px', fontSize: 10 }}>📱 QR</Btn>
