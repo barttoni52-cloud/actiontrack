@@ -387,6 +387,7 @@ export default function App() {
             {view==='vue_manager' && <Manager     {...viewProps} />}
             {view==='journal'     && <Journal     {...viewProps} />}
             {view==='archives'    && <Archives    actions={actions} users={users} currentUser={currentUser} onSelect={setSelectedActionId} />}
+           {view==='historique'  && <PerformanceHistory actions={actions} />}
             {view==='equipe'      && <Equipe      users={users} actions={actions} setUsers={setUsers} currentUser={currentUser} />}
             {view==='groupes'     && <GestionGroupes groupes={groupes} users={users} currentUser={currentUser} onUpdate={setGroupes} />}
           </div>
