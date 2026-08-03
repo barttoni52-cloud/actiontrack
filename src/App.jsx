@@ -57,6 +57,8 @@ const actionToDB = (a) => ({
   retard_motif: a.retardMotif, retard_details: a.retardDetails,
   echec_motif: a.echecMotif, echec_details: a.echecDetails,
   qr_token: a.qrToken, assignes: a.assignes || [],
+  recurrence: a.recurrence || null,
+  recurrence_parent_id: a.recurrenceParentId || null,
 });
 
 const dbToProjet = (p) => ({
