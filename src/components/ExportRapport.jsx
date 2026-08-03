@@ -18,8 +18,9 @@ function buildStats(actions, users, now) {
   return { total, validees, rejetees, enCours, enRetard, taux, parCategorie, alertes };
 }
 
-function ReportContent({ title, subtitle, actions, users, currentUser, showAgentPerf }) {
+function ReportContent({ title, subtitle, actions, users, projets, currentUser, showAgentPerf = true }) {
   const now = new Date();
+  const dateRapport = now.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
   const { total, validees, rejetees, enCours, enRetard, taux, parCategorie, alertes } = buildStats(actions, users, now);
 
   const parAgent = showAgentPerf ? users.filter(u => u.actif && u.role === 'agent').map(u => {
@@ -32,7 +33,7 @@ function ReportContent({ title, subtitle, actions, users, currentUser, showAgent
   return (
     <div>
       <h1>ACTIONTRACK — {title.toUpperCase()}</h1>
-      <p className="subtitle">{subtitle} · Généré le {now.toLocaleDateString('fr-FR', { day:'2-digit', month:'long', year:'numeric' })} par {currentUser.nom}</p>
+      <p className="subtitle">{subtitle} · Généré le {dateRapport} par {currentUser.nom}</p>
 
       <h2>Synthèse</h2>
       <div className="kpi-grid">
@@ -178,24 +179,33 @@ export default function ExportRapport({ actions, users, projets, currentUser, gr
   const [mode, setMode] = useState('collectif');
   const [selectedAgent, setSelectedAgent] = useState('');
   const [selectedGroupe, setSelectedGroupe] = useState('');
+  const [dateDebut, setDateDebut] = useState('');
+  const [dateFin, setDateFin] = useState('');
   const printRef = useRef(null);
 
   const agents = users.filter(u => u.actif && u.role === 'agent');
 
+  const filterByDate = (acts) => acts.filter(a => {
+    const d = new Date(a.dateCreation);
+    if (dateDebut && d < new Date(dateDebut)) return false;
+    if (dateFin && d > new Date(dateFin + 'T23:59:59')) return false;
+    return true;
+  });
+
   const getFilteredData = () => {
     if (mode === 'agent' && selectedAgent) {
       const agent = users.find(u => u.id === selectedAgent);
-      const filteredActions = actions.filter(a => a.assigneA === selectedAgent || (a.assignes || []).some(x => x.userId === selectedAgent));
+      const filteredActions = filterByDate(actions.filter(a => a.assigneA === selectedAgent || (a.assignes || []).some(x => x.userId === selectedAgent)));
       return { filteredActions, filteredUsers: [agent], title: `Rapport Agent — ${agent?.nom}`, subtitle: `${agent?.poste || agent?.role} · ${filteredActions.length} mission(s)`, showAgentPerf: false };
     }
     if (mode === 'groupe' && selectedGroupe) {
       const groupe = groupes.find(g => g.id === selectedGroupe);
       const membres = (groupe?.membres || []).map(uid => users.find(u => u.id === uid)).filter(Boolean);
       const membresIds = membres.map(u => u.id);
-      const filteredActions = actions.filter(a => membresIds.includes(a.assigneA) || (a.assignes || []).some(x => membresIds.includes(x.userId)));
+      const filteredActions = filterByDate(actions.filter(a => membresIds.includes(a.assigneA) || (a.assignes || []).some(x => membresIds.includes(x.userId))));
       return { filteredActions, filteredUsers: membres, title: `Rapport Groupe — ${groupe?.nom}`, subtitle: `${membres.length} membre(s) · ${filteredActions.length} mission(s)`, showAgentPerf: true };
     }
-    return { filteredActions: actions, filteredUsers: users, title: 'Rapport Collectif', subtitle: `${users.filter(u=>u.actif).length} membre(s) · ${projets.length} projet(s)`, showAgentPerf: true };
+    return { filteredActions: filterByDate(actions), filteredUsers: users, title: 'Rapport Collectif', subtitle: `${users.filter(u=>u.actif).length} membre(s) · ${projets.length} projet(s)`, showAgentPerf: true };
   };
 
   const { filteredActions, filteredUsers, title, subtitle, showAgentPerf } = getFilteredData();
@@ -249,6 +259,18 @@ export default function ExportRapport({ actions, users, projets, currentUser, gr
               {groupes.map(g => <option key={g.id} value={g.id}>{g.nom} ({(g.membres||[]).length} membres)</option>)}
             </select>
           )}
+          <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+            <span style={{ fontSize:10, color:'#7a7672' }}>Du</span>
+            <input type="date" value={dateDebut} onChange={e => setDateDebut(e.target.value)}
+              style={{ background:'#fff', border:'1px solid #d4cfc8', borderRadius:6, padding:'5px 8px', fontSize:11, fontFamily:'inherit' }} />
+            <span style={{ fontSize:10, color:'#7a7672' }}>au</span>
+            <input type="date" value={dateFin} onChange={e => setDateFin(e.target.value)}
+              style={{ background:'#fff', border:'1px solid #d4cfc8', borderRadius:6, padding:'5px 8px', fontSize:11, fontFamily:'inherit' }} />
+            {(dateDebut || dateFin) && (
+              <button onClick={() => { setDateDebut(''); setDateFin(''); }}
+                style={{ background:'none', border:'none', color:'#dc2626', cursor:'pointer', fontSize:11, fontFamily:'inherit' }}>✕ Effacer</button>
+            )}
+          </div>
           <div style={{ fontSize:11, color:'#7a7672', marginLeft:'auto' }}>
             {filteredActions.length} mission(s) · {filteredUsers.filter(u=>u.actif).length} membre(s)
           </div>
@@ -267,7 +289,7 @@ export default function ExportRapport({ actions, users, projets, currentUser, gr
             </div>
           ) : (
             <div ref={printRef}>
-              <ReportContent title={title} subtitle={subtitle} actions={filteredActions} users={filteredUsers} currentUser={currentUser} showAgentPerf={showAgentPerf} />
+              <ReportContent title={title} subtitle={subtitle} actions={filteredActions} users={filteredUsers} projets={projets} currentUser={currentUser} showAgentPerf={showAgentPerf} />
             </div>
           )}
         </div>
