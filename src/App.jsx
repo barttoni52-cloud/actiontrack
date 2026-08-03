@@ -16,6 +16,7 @@ import QRModal from './components/QRModal';
 import NewActionModal from './components/NewActionModal';
 import NotifPanel from './components/NotifPanel';
 import ExportRapport from './components/ExportRapport';
+import ProfileModal from './components/ProfileModal';
 import { gid, nowISO, INITIAL_PROJETS } from './data/initial';
 
 const CSS = `
